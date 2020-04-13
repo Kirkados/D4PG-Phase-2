@@ -32,8 +32,9 @@ class Rotorcraft:
     def __init__(self, ac_id):
         self.initialized = False
         self.id = ac_id
-        self.X = np.zeros(3)
-        self.V = np.zeros(3)
+        self.X = np.zeros(3) # Position
+        self.V = np.zeros(3) # Velocity
+        self.W = np.zeros(3) # Angles
         self.timeout = 0
 
 class Guidance(object):
@@ -78,8 +79,53 @@ class Guidance(object):
                 rc.V[2] = float(msg['ins_zd']) * i2v
                 rc.timeout = 0
                 rc.initialized = True
-        self._interface.subscribe(ins_cb, PprzMessage("telemetry", "INS"))
+        # self._interface.subscribe(ins_cb, PprzMessage("telemetry", "INS"))
 
+        def rotorcraft_fp_cb(ac_id, msg):
+            if ac_id in self.ids and msg.name == "ROTORCRAFT_FP":
+                rc = self.rotorcrafts[self.ids.index(ac_id)]
+                i2p = 1. / 2**8     # integer to position
+                i2v = 1. / 2**19    # integer to velocity
+                i2w = 1. / 2**12     # integer to angle
+                rc.X[0] = float(msg['north']) * i2p
+                rc.X[1] = float(msg['east']) * i2p
+                rc.X[2] = float(msg['up']) * i2p
+                rc.V[0] = float(msg['vnorth']) * i2v
+                rc.V[1] = float(msg['veast']) * i2v
+                rc.V[2] = float(msg['vup']) * i2v
+                rc.W[2] = float(msg['psi']) * i2w
+                rc.timeout = 0
+                rc.initialized = True
+        self._interface.subscribe(rotorcraft_fp_cb, PprzMessage("telemetry", "ROTORCRAFT_FP"))
+    # <message name="ROTORCRAFT_FP" id="147">
+    #   <field name="east"     type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="north"    type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="up"       type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="veast"    type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+    #   <field name="vnorth"   type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+    #   <field name="vup"      type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+    #   <field name="phi"      type="int32" alt_unit="deg" alt_unit_coef="0.0139882"/>
+    #   <field name="theta"    type="int32" alt_unit="deg" alt_unit_coef="0.0139882"/>
+    #   <field name="psi"      type="int32" alt_unit="deg" alt_unit_coef="0.0139882"/>
+    #   <field name="carrot_east"   type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="carrot_north"  type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="carrot_up"     type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+    #   <field name="carrot_psi"    type="int32" alt_unit="deg" alt_unit_coef="0.0139882"/>
+    #   <field name="thrust"        type="int32"/>
+    #   <field name="flight_time"   type="uint16" unit="s"/>
+    # </message>
+
+    # <message name="INS" id="198">
+    #   <field name="ins_x"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>
+    #   <field name="ins_y"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>
+    #   <field name="ins_z"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>
+    #   <field name="ins_xd"    type="int32" alt_unit="m/s"  alt_unit_coef="0.0000019"/>
+    #   <field name="ins_yd"    type="int32" alt_unit="m/s"  alt_unit_coef="0.0000019"/>
+    #   <field name="ins_zd"    type="int32" alt_unit="m/s"  alt_unit_coef="0.0000019"/>
+    #   <field name="ins_xdd"   type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+    #   <field name="ins_ydd"   type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+    #   <field name="ins_zdd"   type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+    # </message>
 
     def shutdown(self):
         if self._interface is not None:
@@ -175,7 +221,7 @@ class Guidance(object):
         """
         msg = PprzMessage("datalink", "GUIDED_SETPOINT_NED")
         msg['ac_id'] = self.ac_id
-        msg['flags'] = 0x60
+        msg['flags'] = 0xE0
         msg['x'] = north
         msg['y'] = east
         msg['z'] = down
@@ -197,6 +243,28 @@ class Guidance(object):
         print("move at vel body: %s" % msg)
         self._interface.send_raw_datalink(msg)
 
+    # <message name="GUIDED_SETPOINT_NED" id="40" link="forwarded">
+    #   <description>
+    #     Set vehicle position or velocity in NED.
+    #     Frame can be specified with the bits 0-3
+    #     Velocity of position setpoint can be specified with the bits 5-7
+    #     Flags field definition:
+    #     - bit 0: x,y as offset coordinates
+    #     - bit 1: x,y in body coordinates
+    #     - bit 2: z as offset coordinates
+    #     - bit 3: yaw as offset coordinates
+    #     - bit 4: free
+    #     - bit 5: x,y as vel
+    #     - bit 6: z as vel
+    #     - bit 7: yaw as rate
+    #   </description>
+    #   <field name="ac_id" type="uint8"/>
+    #   <field name="flags" type="uint8">bits 0-3: frame, bits 5-7: use as velocity</field>
+    #   <field name="x" type="float" unit="m">X position/velocity in NED</field>
+    #   <field name="y" type="float" unit="m">Y position/velocity in NED</field>
+    #   <field name="z" type="float" unit="m">Z position/velocity in NED (negative altitude)</field>
+    #   <field name="yaw" type="float" unit="rad" alt_unit="deg">yaw/rate setpoint</field>
+    # </message>
 
 # class IvyRequester(object):
 #     def __init__(self, interface=None):
@@ -255,7 +323,7 @@ def main():
     
         # Try to load in policy network parameters
         try:
-            ckpt = tf.train.get_checkpoint_state('../')
+            ckpt = tf.train.get_checkpoint_state('./')
             saver.restore(sess, ckpt.model_checkpoint_path)
             print("\nModel successfully loaded!\n")
     
@@ -299,21 +367,23 @@ def main():
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
-                print('G IDS : ',g.ids) # debug....
+                # print('G IDS : ',g.ids) # debug....
                 policy_input = np.zeros(8) # initializing policy input
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
-                    print('rc.id',rc.id)
-                    print('rc.X',rc.X)  # example to see the positions, or you can get the velocities as well...
-                    if rc.id == 1: # we've found the target
+                    # print('rc.id',rc.id)
+                    print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
+                    if rc.id == target_id: # we've found the target
                         policy_input[4] =  rc.X[0] # target X [north] =   North
                         policy_input[5] = -rc.X[1] # targey Y [west]  = - East
                         policy_input[6] = -rc.X[2] # target Z [up]    = - Down
+                        policy_input[7] =  rc.W[2]
                         # Note: rc.V returns the velocity
-                    if rc.id == 2: # we've found the chaser (follower)
+                    if rc.id == follower_id: # we've found the chaser (follower)
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
                         policy_input[2] = -rc.X[2] # chaser Z [up]    = - Down
+                        policy_input[3] =  rc.W[2]
                         # Note: rc.V returns the velocity
                     
                 
@@ -339,7 +409,7 @@ def main():
                 # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity]
         
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
+                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = deep_guidance[2], yaw=deep_guidance[3])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

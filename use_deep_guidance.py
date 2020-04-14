@@ -323,7 +323,7 @@ def main():
     
         # Try to load in policy network parameters
         try:
-            ckpt = tf.train.get_checkpoint_state('./')
+            ckpt = tf.train.get_checkpoint_state('../')
             saver.restore(sess, ckpt.model_checkpoint_path)
             print("\nModel successfully loaded!\n")
     
@@ -376,15 +376,15 @@ def main():
                     if rc.id == target_id: # we've found the target
                         policy_input[4] =  rc.X[0] # target X [north] =   North
                         policy_input[5] = -rc.X[1] # targey Y [west]  = - East
-                        policy_input[6] = -rc.X[2] # target Z [up]    = - Down
-                        policy_input[7] =  rc.W[2]
-                        # Note: rc.V returns the velocity
+                        policy_input[6] =  rc.X[2] # target Z [up]    =   Up
+                        policy_input[7] =  np.unwrap(rc.W[2]) # target yaw 
+                        # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     if rc.id == follower_id: # we've found the chaser (follower)
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
-                        policy_input[2] = -rc.X[2] # chaser Z [up]    = - Down
-                        policy_input[3] =  rc.W[2]
-                        # Note: rc.V returns the velocity
+                        policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up
+                        policy_input[3] =  np.unwrap(rc.W[2]) # chaser yaw
+                        # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
                 
                 ############################################################
@@ -409,7 +409,7 @@ def main():
                 # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity]
         
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = deep_guidance[2], yaw=deep_guidance[3])
+                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=deep_guidance[3])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

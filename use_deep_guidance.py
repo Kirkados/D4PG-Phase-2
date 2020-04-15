@@ -411,7 +411,7 @@ def main():
         
                 # Run processed state through the policy
                 deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:normalized_policy_input})[0]
-                # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity]
+                # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity [counter-clockwise looking down from above]]
         
                 # Send velocity command to aircraft!
                 g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=deep_guidance[3])

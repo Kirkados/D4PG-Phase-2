@@ -379,7 +379,7 @@ def main():
                         policy_input[4] =  rc.X[0] # target X [north] =   North
                         policy_input[5] = -rc.X[1] # targey Y [west]  = - East
                         policy_input[6] =  rc.X[2] # target Z [up]    =   Up
-                        policy_input[7] =  np.unwrap([last_target_yaw, rc.W[2]])[1] # target yaw 
+                        policy_input[7] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
                         last_target_yaw = policy_input[7]
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     if rc.id == follower_id: # we've found the chaser (follower)
@@ -387,7 +387,7 @@ def main():
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
                         policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up
                         
-                        policy_input[3] =  np.unwrap([last_chaser_yaw, rc.W[2]])[1] # chaser yaw
+                        policy_input[3] =  np.unwrap([last_chaser_yaw, -rc.W[2]])[1] # chaser yaw  [counter-clockwise] = -yaw [clockwise]
                         last_chaser_yaw = policy_input[3]
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
@@ -414,7 +414,7 @@ def main():
                 # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity [counter-clockwise looking down from above]]
         
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=deep_guidance[3])
+                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=-deep_guidance[3])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

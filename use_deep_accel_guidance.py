@@ -63,7 +63,7 @@ def main():
         try:
             g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
             sleep(0.1)
-            g.set_guided_mode()
+            # g.set_guided_mode()
             sleep(0.2)
             last_target_yaw = 0.0
             last_chaser_yaw = 0.0
@@ -115,7 +115,8 @@ def main():
                 # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity [counter-clockwise looking down from above]]
         
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=-deep_guidance[3])
+                # g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=-deep_guidance[3])
+                g.accelerate(deep_guidance)
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

@@ -66,25 +66,25 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.TOTAL_STATE_SIZE         = 11 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
-                                           #  chaser_x_dot, chaser_y_dot, chaser_z_dot]
+        self.TOTAL_STATE_SIZE         = 12 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
+                                           #  chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot]
         ### Note: TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
         #         TOTAL_STATE is returned from the environment to the agent.
         #         A subset of the TOTAL_STATE, called the 'observation', is passed to the policy network to calculate acitons. This takes place in the agent
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES        = [] # indices of states who are irrelevant to the policy network
+        self.IRRELEVANT_STATES        = [11] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE              = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
         self.LOWER_ACTION_BOUND       = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND       = np.array([ 90*np.pi/180,  2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
+        self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0, -90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                = True # whether or not to RANDOMIZE the state & target location
         self.INITIAL_CHASER_POSITION = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
-        self.INITIAL_CHASER_VELOCITY = np.array([0.0, 0.0, 0.0]) # [m/s, m/s, m/s]
+        self.INITIAL_CHASER_VELOCITY = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
         self.INITIAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                    = -200.
         self.MAX_V                    =  200.
@@ -93,7 +93,7 @@ class Environment:
         self.TIMESTEP                 =   0.2 # [s]
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
-        self.END_ON_FALL              = True # end episode on a fall off the table
+        self.END_ON_FALL              = False # end episode on a fall off the table
         self.GOAL_REWARD              =   0.
         self.NEGATIVE_PENALTY_FACTOR  = 1.5 # How much of a factor to additionally penalize negative rewards
         self.MAX_NUMBER_OF_TIMESTEPS  = 450 # per episode -- 450 for stationary, 900 for rotating
@@ -117,10 +117,8 @@ class Environment:
         self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KP                       = 0 # PD controller gain
-        self.KD                       = 0 # PD controller gain
-        self.KI                       = 1.0 # Integral gain
-        self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 1, 0.05] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
+        self.KP                       = 1.0 # Proportional-velocity controller gain for attitude controller
+        self.KI                       = 1.0 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
         self.LENGTH  = 0.3  # [m] side length
@@ -211,30 +209,22 @@ class Environment:
         ##### PROPAGATE KINEMATICS/DYNAMICS #####
         #########################################
         if self.dynamics_flag:
-            # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action]
-
             ############################
             #### PROPAGATE DYNAMICS ####
             ############################
-            # First calculate the next guidance command
-            guidance_propagation = odeint(kinematics_equations_of_motion, self.chaser_position, [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
-
-            # Saving the new guidance signal
-            guidance_position = guidance_propagation[1,:]
 
             # Next, calculate the control effort
-            control_effort = self.controller(guidance_position, action) # Passing the desired position and velocity (Note: the action is the desired velocity)
+            control_effort = self.controller(action)
 
             # Anything additional that needs to be sent to the dynamics integrator
             dynamics_parameters = [control_effort, self.MASS, self.INERTIA]
 
-            # Finally, propagate the dynamics forward one timestep
-            next_states = odeint(dynamics_equations_of_motion, np.concatenate((self.chaser_position, self.chaser_velocity)), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
+            # Propagate the dynamics forward one timestep
+            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:len(self.chaser_position)] # extract position
-            self.chaser_velocity = next_states[1,len(self.chaser_position):] # extract velocity
+            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
 
         else:
 
@@ -294,15 +284,35 @@ class Environment:
             self.previous_position_reward = [None, None, None, None] # Reset the reward function to avoid a major spike
 
 
-    def controller(self, guidance_position, guidance_velocity):
+    def controller(self, action):
         # This function calculates the control effort based on the state and the
-        # desired position (guidance_command)
-
-        position_error = guidance_position - self.chaser_position
-        velocity_error = guidance_velocity - self.chaser_velocity
-
-        # Using a PD controller on all states independently
-        control_effort = self.KP * position_error*self.CONTROLLER_ERROR_WEIGHT + self.KD * velocity_error*self.CONTROLLER_ERROR_WEIGHT
+        # desired acceleration (action)
+        
+        ###########################################################
+        ### Position control (integral-acceleration controller) ###
+        ###########################################################
+        desired_acceleration = action[1:]
+        current_acceleration = 0
+        
+        acceleration_error = desired_acceleration - current_acceleration
+        
+        # Integral-acceleration control
+        linear_control_effort = self.previous_linear_control_effort + self.KI * acceleration_error
+        
+        ###########################################################
+        ### Attitude control (proportional-velocity controller) ###
+        ###########################################################
+        desired_angular_rate = action[0]
+        current_angular_rate = self.chaser_velocity[-1]
+        
+        angular_rate_error = desired_angular_rate - current_angular_rate
+        
+        # Proportional-velocity control
+        angular_control_effort = self.KP * angular_rate_error
+        
+        
+        # Stacking the two [F_x, F_y, F_z, torque_about_z]
+        control_effort = np.concatenate([linear_control_effort, angular_control_effort])
 
         return control_effort
 
@@ -467,12 +477,12 @@ def kinematics_equations_of_motion(state, t, parameters):
     # state is [position, velocity]
     # its derivative is [velocity, acceleration]
     #position = state[:position_length] # [x, y, z, theta]
-    velocity = state[position_length:] # [x_dot, y_dot, z_dot]
+    velocity = state[position_length:] # [x_dot, y_dot, z_dot, theta_dot] # Note: the velocity's theta_dot is irrelevant in kinematics.
     
     acceleration = action # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
 
     # Building the derivative matrix.
-    derivatives = np.concatenate([velocity, acceleration])
+    derivatives = np.concatenate([velocity[0:-1], np.concatenate([acceleration, np.zeros(1)]) ])
 
     return derivatives
 

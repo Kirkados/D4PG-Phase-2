@@ -76,8 +76,8 @@ class Environment:
         self.IRRELEVANT_STATES        = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE              = 4 # [x_dot, y_dot, z_dot, theta_dot]
-        self.LOWER_ACTION_BOUND       = np.array([-0.5, -0.5, -0.5, -30*np.pi/180]) # [m/s, m/s, m/s, rad/s]
-        self.UPPER_ACTION_BOUND       = np.array([ 0.5,  0.5,  0.5,  30*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.LOWER_ACTION_BOUND       = np.array([-2.0, -2.0, -2.0, -90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.UPPER_ACTION_BOUND       = np.array([ 2.0,  2.0,  2.0,  90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
         self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients

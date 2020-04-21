@@ -66,7 +66,8 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.TOTAL_STATE_SIZE         = 8 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta]
+        self.TOTAL_STATE_SIZE         = 11 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
+                                           #  chaser_x_dot, chaser_y_dot, chaser_z_dot]
         ### Note: TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
         #         TOTAL_STATE is returned from the environment to the agent.
         #         A subset of the TOTAL_STATE, called the 'observation', is passed to the policy network to calculate acitons. This takes place in the agent
@@ -75,15 +76,15 @@ class Environment:
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
         self.IRRELEVANT_STATES        = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE              = 4 # [x_dot, y_dot, z_dot, theta_dot]
-        self.LOWER_ACTION_BOUND       = np.array([-2.0, -2.0, -2.0, -90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
-        self.UPPER_ACTION_BOUND       = np.array([ 2.0,  2.0,  2.0,  90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
-        self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // upper bound for each element of TOTAL_STATE
+        self.ACTION_SIZE              = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
+        self.LOWER_ACTION_BOUND       = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND       = np.array([ 90*np.pi/180,  2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                = True # whether or not to RANDOMIZE the state & target location
-        self.NOMINAL_INITIAL_POSITION = np.array([0.0, 2.0, 0.0, 0.0])
-        self.NOMINAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0])
+        self.NOMINAL_INITIAL_POSITION = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
+        self.NOMINAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                    = -200.
         self.MAX_V                    =  200.
         self.N_STEP_RETURN            =   1
@@ -109,14 +110,15 @@ class Environment:
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
 
         # Test time properties
-        self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
+        self.TEST_ON_DYNAMICS         = False # Whether or not to use full dynamics along with a PD controller at test time
         self.KINEMATIC_NOISE          = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
         self.KINEMATIC_NOISE_SD       = [0.02, 0.02, 0.02, np.pi/100] # The standard deviation of the noise that is to be applied to each element in the state
         self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
         self.KP                       = 0 # PD controller gain
-        self.KD                       = 2.0 # PD controller gain
+        self.KD                       = 0 # PD controller gain
+        self.KI                       = 1.0 # Integral gain
         self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 1, 0.05] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
         
         # Physical properties
@@ -134,7 +136,7 @@ class Environment:
         self.DOCKING_TOO_FAST_PENALTY = 0 # [rewards/s] penalty for docking too quickly
         self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02, 10]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
-        self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
+        self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
 
     ###################################
@@ -183,11 +185,11 @@ class Environment:
         # Hold point location
         self.hold_point   = self.target_location + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0., -np.pi])
 
-        if use_dynamics:
-            # Setting the dynamics state to be equal, initially, to the kinematics state, plus the velocity initial conditions state
-            self.chaser_velocity = np.array([0., 0., 0., 0.])
-            #self.state = np.concatenate((self.state, velocity_initial_conditions))
-            """ Note: dynamics_state = [x, y, z, theta, xdot, ydot, zdot, thetadot] """
+        # Chaser has zero initial velocity
+        self.chaser_velocity = np.array([0., 0., 0., 0.])
+        
+        
+        if use_dynamics:            
             self.dynamics_flag = True # for this episode, dynamics will be used
 
         # Resetting the time
@@ -236,7 +238,7 @@ class Environment:
         else:
 
             # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action]
+            kinematics_parameters = [action, len(self.NOMINAL_INITIAL_POSITION)]
 
             # Dummy guidance position
             guidance_position = []
@@ -244,10 +246,14 @@ class Environment:
             ###############################
             #### PROPAGATE KINEMATICS #####
             ###############################
-            next_states = odeint(kinematics_equations_of_motion, self.chaser_position, [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
+            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:]
+            print("Before step position: ", self.chaser_position, " velocity: ", self.chaser_velocity)
+            self.chaser_position = next_states[1,:len(self.NOMINAL_INITIAL_POSITION)]
+            self.chaser_velocity = next_states[1,len(self.NOMINAL_INITIAL_POSITION):]
+            print("After step position: ", self.chaser_position, " velocity: ", self.chaser_velocity)
+            raise SystemExit
 
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
@@ -454,12 +460,20 @@ class Environment:
 ###################################################################
 def kinematics_equations_of_motion(state, t, parameters):
     # From the state, it returns the first derivative of the state
-
+    
     # Unpacking the action from the parameters
     action = parameters[0]
+    position_length = parameters[1]
+    
+    # state is [position, velocity]
+    # its derivative is [velocity, acceleration]
+    #position = state[:position_length] # [x, y, z, theta]
+    velocity = state[position_length:] # [x_dot, y_dot, z_dot]
+    
+    acceleration = action # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
 
-    # Building the derivative matrix. For kinematics, d(state)/dt = action = \dot{state}
-    derivatives = action
+    # Building the derivative matrix.
+    derivatives = np.concatenate([velocity, acceleration])
 
     return derivatives
 

@@ -83,8 +83,9 @@ class Environment:
         self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                = True # whether or not to RANDOMIZE the state & target location
-        self.NOMINAL_INITIAL_POSITION = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
-        self.NOMINAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
+        self.INITIAL_CHASER_POSITION = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
+        self.INITIAL_CHASER_VELOCITY = np.array([0.0, 0.0, 0.0]) # [m/s, m/s, m/s]
+        self.INITIAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                    = -200.
         self.MAX_V                    =  200.
         self.N_STEP_RETURN            =   1
@@ -92,7 +93,7 @@ class Environment:
         self.TIMESTEP                 =   0.2 # [s]
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
-        self.END_ON_FALL              = False # end episode on a fall off the table
+        self.END_ON_FALL              = True # end episode on a fall off the table
         self.GOAL_REWARD              =   0.
         self.NEGATIVE_PENALTY_FACTOR  = 1.5 # How much of a factor to additionally penalize negative rewards
         self.MAX_NUMBER_OF_TIMESTEPS  = 450 # per episode -- 450 for stationary, 900 for rotating
@@ -166,15 +167,15 @@ class Environment:
         # If we are randomizing the initial conditions and state
         if self.RANDOMIZE:
             # Randomizing initial state
-            self.chaser_position = self.NOMINAL_INITIAL_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
+            self.chaser_position = self.INITIAL_CHASER_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
             # Randomizing target state
-            self.target_location = self.NOMINAL_TARGET_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
+            self.target_location = self.INITIAL_TARGET_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
 
         else:
             # Constant initial state
-            self.chaser_position = self.NOMINAL_INITIAL_POSITION
+            self.chaser_position = self.INITIAL_CHASER_POSITION
             # Constant target location
-            self.target_location = self.NOMINAL_TARGET_POSITION
+            self.target_location = self.INITIAL_TARGET_POSITION
 
         # Obstacle initial location (not randomized)
         self.obstacle_location = self.OBSTACLE_INITIAL_POSITION
@@ -186,7 +187,7 @@ class Environment:
         self.hold_point   = self.target_location + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0., -np.pi])
 
         # Chaser has zero initial velocity
-        self.chaser_velocity = np.array([0., 0., 0., 0.])
+        self.chaser_velocity = self.INITIAL_CHASER_VELOCITY
         
         
         if use_dynamics:            
@@ -238,7 +239,7 @@ class Environment:
         else:
 
             # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action, len(self.NOMINAL_INITIAL_POSITION)]
+            kinematics_parameters = [action, len(self.INITIAL_CHASER_POSITION)]
 
             # Dummy guidance position
             guidance_position = []
@@ -249,11 +250,8 @@ class Environment:
             next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            print("Before step position: ", self.chaser_position, " velocity: ", self.chaser_velocity)
-            self.chaser_position = next_states[1,:len(self.NOMINAL_INITIAL_POSITION)]
-            self.chaser_velocity = next_states[1,len(self.NOMINAL_INITIAL_POSITION):]
-            print("After step position: ", self.chaser_position, " velocity: ", self.chaser_velocity)
-            raise SystemExit
+            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)]
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):]            
 
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
@@ -444,7 +442,8 @@ class Environment:
                 self.reset(action, test_time[0])
                 
                 # Return the TOTAL_STATE
-                self.env_to_agent.put(np.concatenate((self.chaser_position, self.target_location)))
+                total_state = np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ])
+                self.env_to_agent.put(total_state)
 
             else:
                 ################################
@@ -453,7 +452,7 @@ class Environment:
                 reward, done, *guidance_position = self.step(action)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate((self.chaser_position, self.target_location)), reward, done, guidance_position))
+                self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done, guidance_position))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####

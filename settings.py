@@ -15,8 +15,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'test_on_dynamics_is_false' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1'
+    RUN_NAME               = 'test_on_dynamics_is_false_but_end_on_fall' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
@@ -31,7 +31,7 @@ class Settings:
     #############################
 
     # Hyperparameters
-    NUMBER_OF_ACTORS        = 1
+    NUMBER_OF_ACTORS        = 10
     NUMBER_OF_EPISODES      = 5e4 # that each agent will perform
     MAX_TRAINING_ITERATIONS = 1e6 # of neural networks
     ACTOR_LEARNING_RATE     = 0.0001

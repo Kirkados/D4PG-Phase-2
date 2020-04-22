@@ -126,8 +126,8 @@ def main():
                 # deep guidance = [ chaser_angular_velocity [counter-clockwise looking down from above], chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
         
                 # Send velocity/acceleration command to aircraft!
-                g.move_at_ned_vel( yaw=-deep_guidance[0])
-                g.accelerate(deep_guidance[1:])
+                #g.move_at_ned_vel( yaw=-deep_guidance[0])
+                g.accelerate(north = deep_guidance[1], east = -deep_guidance[2], down = -deep_guidance[3])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

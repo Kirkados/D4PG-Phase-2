@@ -46,7 +46,7 @@ State clarity:
     - self.OBSERVATION_SIZE 
 
 
-Started March 26, 2020
+Started April 21, 2020
 @author: Kirk Hovell (khovell@gmail.com)
 """
 import numpy as np
@@ -87,7 +87,7 @@ class Environment:
         self.INITIAL_CHASER_VELOCITY = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
         self.INITIAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                    = -200.
-        self.MAX_V                    =  200.
+        self.MAX_V                    =  400.
         self.N_STEP_RETURN            =   1
         self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                 =   0.2 # [s]
@@ -111,14 +111,14 @@ class Environment:
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
 
         # Test time properties
-        self.TEST_ON_DYNAMICS         = False # Whether or not to use full dynamics along with a PD controller at test time
+        self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
         self.KINEMATIC_NOISE          = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
         self.KINEMATIC_NOISE_SD       = [0.02, 0.02, 0.02, np.pi/100] # The standard deviation of the noise that is to be applied to each element in the state
         self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KP                       = 1.0 # Proportional-velocity controller gain for attitude controller
-        self.KI                       = 1.0 # Integral gain for the integral-linear acceleration controller
+        self.KP                       = 0.5 # Proportional-velocity controller gain for attitude controller
+        self.KI                       = 10.0 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
         self.LENGTH  = 0.3  # [m] side length
@@ -187,6 +187,10 @@ class Environment:
         # Chaser has zero initial velocity
         self.chaser_velocity = self.INITIAL_CHASER_VELOCITY
         
+        # Initializing the previous velocity and control effort for the integral-acceleration controller
+        self.previous_velocity = np.zeros(3)
+        self.previous_linear_control_effort = np.zeros(3)
+        
         
         if use_dynamics:            
             self.dynamics_flag = True # for this episode, dynamics will be used
@@ -218,6 +222,8 @@ class Environment:
 
             # Anything additional that needs to be sent to the dynamics integrator
             dynamics_parameters = [control_effort, self.MASS, self.INERTIA]
+            
+            #print("The commanded acceleration is ", action[1], action[2], action[3], " and angular velocity ", action[0])
 
             # Propagate the dynamics forward one timestep
             next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
@@ -225,14 +231,12 @@ class Environment:
             # Saving the new state
             self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
             self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
+            #print("The chaser angular velocity is ", self.chaser_velocity[-1])
 
         else:
 
             # Additional parameters to be passed to the kinematics
             kinematics_parameters = [action, len(self.INITIAL_CHASER_POSITION)]
-
-            # Dummy guidance position
-            guidance_position = []
 
             ###############################
             #### PROPAGATE KINEMATICS #####
@@ -275,7 +279,7 @@ class Environment:
 
 
         # Return the (reward, done)
-        return reward, done, guidance_position
+        return reward, done
 
     def check_phase_number(self):
         # If the time is past PHASE_1_TIME seconds, automatically enter phase 2
@@ -291,13 +295,15 @@ class Environment:
         ###########################################################
         ### Position control (integral-acceleration controller) ###
         ###########################################################
-        desired_acceleration = action[1:]
-        current_acceleration = 0
+        desired_linear_acceleration = action[1:]
         
-        acceleration_error = desired_acceleration - current_acceleration
+        current_velocity = self.chaser_velocity[:-1] # [v_x, v_y, v_z]
+        current_linear_acceleration = (current_velocity - self.previous_velocity)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        
+        linear_acceleration_error = desired_linear_acceleration - current_linear_acceleration
         
         # Integral-acceleration control
-        linear_control_effort = self.previous_linear_control_effort + self.KI * acceleration_error
+        linear_control_effort = self.previous_linear_control_effort + self.KI * linear_acceleration_error
         
         ###########################################################
         ### Attitude control (proportional-velocity controller) ###
@@ -312,7 +318,14 @@ class Environment:
         
         
         # Stacking the two [F_x, F_y, F_z, torque_about_z]
-        control_effort = np.concatenate([linear_control_effort, angular_control_effort])
+        #print("Linear control effort: ", linear_control_effort, " Angular control effort ", np.array([angular_control_effort]))
+        control_effort = np.concatenate([linear_control_effort, np.array([angular_control_effort])])
+        
+        # Saving the current velocity for the next timetsep
+        self.previous_velocity = current_velocity
+        
+        # Saving the current control effort for the next timestep
+        self.previous_linear_control_effort = linear_control_effort
 
         return control_effort
 
@@ -459,10 +472,10 @@ class Environment:
                 ################################
                 ##### Step the environment #####
                 ################################
-                reward, done, *guidance_position = self.step(action)
+                reward, done = self.step(action)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done, guidance_position))
+                self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####
@@ -498,6 +511,8 @@ def dynamics_equations_of_motion(state, t, parameters):
     control_effort, mass, inertia = parameters # unpacking parameters
 
     derivatives = np.array((xdot, ydot, zdot, thetadot, control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass, control_effort[3]/inertia)).squeeze()
+    
+    #print("The achieved acceleration is ", control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass, control_effort[3]/inertia)
 
     return derivatives
 

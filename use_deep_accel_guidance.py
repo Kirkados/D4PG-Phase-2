@@ -58,7 +58,6 @@ def main():
         ### Guidance model is loaded, now get data and run it through model ###
         #######################################################################
 
-    ### End deep guidance initialization stuff
 
         try:
             g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
@@ -66,15 +65,23 @@ def main():
             # g.set_guided_mode()
             sleep(0.2)
             last_target_yaw = 0.0
-            last_chaser_yaw = 0.0
+            last_chaser_yaw = 0.0    
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
                 # print('G IDS : ',g.ids) # debug....
-                policy_input = np.zeros(8) # initializing policy input
+                policy_input = np.zeros(12) # initializing policy input
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
-                    # print('rc.id',rc.id)
+                    
+                    
+                    """ policy_input is: [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
+                                          chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot] 
+                    
+                    Note: chaser_theta_dot can be returned as a zero (it is discarded before being run through the network)
+                    """
+                    
+                                    
                     print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
                     if rc.id == target_id: # we've found the target
                         policy_input[4] =  rc.X[0] # target X [north] =   North
@@ -86,10 +93,14 @@ def main():
                     if rc.id == follower_id: # we've found the chaser (follower)
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
-                        policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up
-                        
+                        policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up                        
                         policy_input[3] =  np.unwrap([last_chaser_yaw, -rc.W[2]])[1] # chaser yaw  [counter-clockwise] = -yaw [clockwise]
                         last_chaser_yaw = policy_input[3]
+                        
+                        policy_input[8]  =  rc.V[0] # chaser V_x [north] =   North
+                        policy_input[9]  = -rc.V[1] # chaser V_y [west]  = - East
+                        policy_input[10] =  rc.V[2] # chaser V_z [up]    =   Up
+                        policy_input[11] =  0 # dummy entry on the chaser angular velocity because it is irrelevant and discarded
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
                 
@@ -112,11 +123,11 @@ def main():
         
                 # Run processed state through the policy
                 deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:normalized_policy_input})[0]
-                # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity [counter-clockwise looking down from above]]
+                # deep guidance = [ chaser_angular_velocity [counter-clockwise looking down from above], chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
         
-                # Send velocity command to aircraft!
-                # g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=-deep_guidance[3])
-                g.accelerate(deep_guidance)
+                # Send velocity/acceleration command to aircraft!
+                g.move_at_ned_vel( yaw=-deep_guidance[0])
+                g.accelerate(deep_guidance[1:])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
     
 

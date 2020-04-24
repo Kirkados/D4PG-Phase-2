@@ -65,10 +65,12 @@ def main():
             # g.set_guided_mode()
             sleep(0.2)
             last_target_yaw = 0.0
-            last_chaser_yaw = 0.0    
+            last_chaser_yaw = 0.0  
+            total_time = 0.0
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
+                total_time = total_time + g.step
                 # print('G IDS : ',g.ids) # debug....
                 policy_input = np.zeros(12) # initializing policy input
                 for rc in g.rotorcrafts:
@@ -82,13 +84,14 @@ def main():
                     """
                     
                                     
-                    print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
+                    #print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
                     if rc.id == target_id: # we've found the target
                         policy_input[4] =  rc.X[0] # target X [north] =   North
                         policy_input[5] = -rc.X[1] # targey Y [west]  = - East
                         policy_input[6] =  rc.X[2] # target Z [up]    =   Up
                         policy_input[7] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
                         last_target_yaw = policy_input[7]
+                        #print("Target position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f" %(rc.X[0], -rc.X[1], rc.X[2], -rc.W[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     if rc.id == follower_id: # we've found the chaser (follower)
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
@@ -101,6 +104,8 @@ def main():
                         policy_input[9]  = -rc.V[1] # chaser V_y [west]  = - East
                         policy_input[10] =  rc.V[2] # chaser V_z [up]    =   Up
                         policy_input[11] =  0 # dummy entry on the chaser angular velocity because it is irrelevant and discarded
+                        
+                        #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
                 
@@ -108,7 +113,7 @@ def main():
                 ##### Received data! Process it and return the result! #####
                 ############################################################
         	    # Calculating the proper policy input (deleting irrelevant states and normalizing input)
-    
+                print(policy_input)
                 # Normalizing
                 if Settings.NORMALIZE_STATE:
                     normalized_policy_input = (policy_input - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
@@ -128,7 +133,8 @@ def main():
                 # Send velocity/acceleration command to aircraft!
                 #g.move_at_ned_vel( yaw=-deep_guidance[0])
                 g.accelerate(north = deep_guidance[1], east = -deep_guidance[2], down = -deep_guidance[3])
-                print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
+                #print("Deep guidance command: a_x: %.2f; a_y: %.2f; a_z: %.2f" %( deep_guidance[1], deep_guidance[2], deep_guidance[3]))
+                print("Time: %.2f; X: %.2f; Vx: %.2f; Ax: %.2f" %(total_time, policy_input[0], policy_input[8], deep_guidance[1]))
     
 
 

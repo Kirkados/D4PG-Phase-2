@@ -83,8 +83,8 @@ class Environment:
         self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                = True # whether or not to RANDOMIZE the state & target location
-        self.INITIAL_CHASER_POSITION = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
-        self.INITIAL_CHASER_VELOCITY = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
+        self.INITIAL_CHASER_POSITION  = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
+        self.INITIAL_CHASER_VELOCITY  = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
         self.INITIAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                    = -200.
         self.MAX_V                    =  400.
@@ -130,13 +130,13 @@ class Environment:
         self.TARGET_COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.PHASE_1_TIME             = 90 # [s] the time to automatically switch from phase 0 to phase 1 -> 45 for stationary; 90 for rotating
         self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
-        self.DOCKING_TOO_FAST_PENALTY = 0 # [rewards/s] penalty for docking too quickly
-        self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02, 10]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
+        self.PENALIZE_MAX_VELOCITY    = True
+        self.VELOCITY_LIMIT           = 0.5 # [m/s] maximum allowable velocity, penalties given for exceeding this velocity
+        self.MAX_VELOCITY_PENALTY     = 10 # [rewards/s]
 
     ###################################
     ##### Seeding the environment #####
@@ -155,9 +155,6 @@ class Environment:
         """
         # Setting the default to be kinematics
         self.dynamics_flag = False
-
-        # Resetting phase number so we complete phase 0 before moving on to phase 1
-        self.phase_number = 0
 
         # Logging whether it is test time for this episode
         self.test_time = test_time
@@ -261,9 +258,6 @@ class Environment:
 
         # Check if this episode is done
         done = self.is_done()
-
-        # Check if Phase 1 was completed
-        self.check_phase_number()
         
         # Step obstacle's position ahead one timestep
         self.obstacle_location += self.OBSTABLE_VELOCITY*self.TIMESTEP
@@ -280,13 +274,6 @@ class Environment:
 
         # Return the (reward, done)
         return reward, done
-
-    def check_phase_number(self):
-        # If the time is past PHASE_1_TIME seconds, automatically enter phase 2
-        if self.time >= self.PHASE_1_TIME and self.phase_number == 0:
-            self.phase_number = 1
-            self.previous_position_reward = [None, None, None, None] # Reset the reward function to avoid a major spike
-
 
     def controller(self, action):
         # This function calculates the control effort based on the state and the
@@ -345,11 +332,7 @@ class Environment:
         # Returns the reward for this TIMESTEP as a function of the state and action
 
         # Sets the current location that we are trying to move to
-        if self.phase_number == 0:
-            desired_location = self.hold_point
-        elif self.phase_number == 1:
-            desired_location = self.docking_port
-
+        desired_location = self.hold_point
 
         current_position_reward = np.zeros(1)
 
@@ -375,10 +358,6 @@ class Environment:
         # Collapsing to a scalar
         reward = np.sum(reward)
 
-        # Giving a penalty for docking too quickly
-        if self.phase_number == 1 and np.any(np.abs(action) > self.MAX_DOCKING_SPEED):
-            reward -= self.DOCKING_TOO_FAST_PENALTY
-
         # Giving a massive penalty for falling off the table
         if self.chaser_position[0] > self.UPPER_STATE_BOUND[0] or self.chaser_position[0] < self.LOWER_STATE_BOUND[0] or self.chaser_position[1] > self.UPPER_STATE_BOUND[1] or self.chaser_position[1] < self.LOWER_STATE_BOUND[1]:
             reward -= self.FALL_OFF_TABLE_PENALTY/self.TIMESTEP
@@ -400,6 +379,10 @@ class Environment:
             radius = np.linalg.norm(desired_location[:2]- self.target_location[:2]) # vector from the target to the desired location
             reference_velocity = self.TARGET_ANGULAR_VELOCITY*np.array([-radius*np.sin(self.target_location[2]), radius*np.cos(self.target_location[2]), 0, 1])
             reward -= np.sum(np.abs(action - reference_velocity)/(self.pose_error()**2+0.01)*self.VELOCITY_PENALTY)
+        
+        # Giving a penalty for exceeding the recommended maximum velocity (decided by Murat)
+        if self.PENALIZE_MAX_VELOCITY:
+            reward -= self.MAX_VELOCITY_PENALTY*np.sum(self.chaser_velocity[:-1] > self.VELOCITY_LIMIT)
 
         # Multiplying the reward by the TIMESTEP to give the rewards on a per-second basis
         return (reward*self.TIMESTEP).squeeze()

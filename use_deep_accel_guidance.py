@@ -97,7 +97,7 @@ def main():
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
                         policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up                        
-                        policy_input[3] =  np.unwrap([last_chaser_yaw, -rc.W[2]])[1] # chaser yaw  [counter-clockwise] = -yaw [clockwise]
+                        policy_input[3] =  np.unwrap([last_chaser_yaw, -rc.W[2] - np.pi])[1] # chaser yaw  [counter-clockwise] = -yaw [clockwise]
                         last_chaser_yaw = policy_input[3]
                         
                         policy_input[8]  =  rc.V[0] # chaser V_x [north] =   North

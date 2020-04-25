@@ -91,6 +91,7 @@ class Environment:
         self.N_STEP_RETURN            =   1
         self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                 =   0.2 # [s]
+        self.DYNAMICS_DELAY           =   4 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
         self.END_ON_FALL              = False # end episode on a fall off the table
@@ -135,8 +136,8 @@ class Environment:
         self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
         self.PENALIZE_MAX_VELOCITY    = True
-        self.VELOCITY_LIMIT           = 0.5 # [m/s] maximum allowable velocity, penalties given for exceeding this velocity
-        self.MAX_VELOCITY_PENALTY     = 10 # [rewards/s]
+        self.VELOCITY_LIMIT           = 0.05 # [m/s] maximum allowable velocity, penalties given for exceeding this velocity
+        self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s]
 
     ###################################
     ##### Seeding the environment #####
@@ -197,7 +198,12 @@ class Environment:
 
         # Resetting the differential reward
         self.previous_position_reward = [None, None, None, None]
-
+        
+        # Resetting the action delay queue
+        if self.DYNAMICS_DELAY > 0:
+            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY)
+            for i in range(self.DYNAMICS_DELAY - 1):
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
     #####################################
     ##### Step the Dynamics forward #####
@@ -382,7 +388,7 @@ class Environment:
         
         # Giving a penalty for exceeding the recommended maximum velocity (decided by Murat)
         if self.PENALIZE_MAX_VELOCITY:
-            reward -= self.MAX_VELOCITY_PENALTY*np.sum(self.chaser_velocity[:-1] > self.VELOCITY_LIMIT)
+            reward -= self.MAX_VELOCITY_PENALTY*np.sum(np.abs(self.chaser_velocity[:-1]) > self.VELOCITY_LIMIT)
 
         # Multiplying the reward by the TIMESTEP to give the rewards on a per-second basis
         return (reward*self.TIMESTEP).squeeze()
@@ -441,7 +447,7 @@ class Environment:
         # Loop until the process is terminated
         while True:
             # Blocks until the agent passes us an action
-            action, *test_time = self.agent_to_env.get()
+            action, *test_time = self.agent_to_env.get()        
 
             if type(action) == bool:
                 # The signal to reset the environment was received
@@ -452,9 +458,14 @@ class Environment:
                 self.env_to_agent.put(total_state)
 
             else:
+                # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
+                if self.DYNAMICS_DELAY > 0:
+                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
+                    action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
+                
                 ################################
                 ##### Step the environment #####
-                ################################
+                ################################                
                 reward, done = self.step(action)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)

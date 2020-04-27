@@ -91,7 +91,7 @@ class Environment:
         self.N_STEP_RETURN            =   1
         self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                 =   0.2 # [s]
-        self.DYNAMICS_DELAY           =   4 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.DYNAMICS_DELAY           =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
         self.END_ON_FALL              = False # end episode on a fall off the table
@@ -135,9 +135,9 @@ class Environment:
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
-        self.PENALIZE_MAX_VELOCITY    = True
-        self.VELOCITY_LIMIT           = 0.05 # [m/s] maximum allowable velocity, penalties given for exceeding this velocity
-        self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s]
+        self.PENALIZE_MAX_VELOCITY    = False
+        self.VELOCITY_LIMIT           = 0.05 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
+        self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
 
     ###################################
     ##### Seeding the environment #####
@@ -225,8 +225,6 @@ class Environment:
 
             # Anything additional that needs to be sent to the dynamics integrator
             dynamics_parameters = [control_effort, self.MASS, self.INERTIA]
-            
-            #print("The commanded acceleration is ", action[1], action[2], action[3], " and angular velocity ", action[0])
 
             # Propagate the dynamics forward one timestep
             next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
@@ -234,7 +232,7 @@ class Environment:
             # Saving the new state
             self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
             self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
-            #print("The chaser angular velocity is ", self.chaser_velocity[-1])
+            #self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
 
         else:
 
@@ -247,8 +245,9 @@ class Environment:
             next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)]
-            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):]            
+            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
+            self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
 
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
@@ -293,6 +292,10 @@ class Environment:
         current_velocity = self.chaser_velocity[:-1] # [v_x, v_y, v_z]
         current_linear_acceleration = (current_velocity - self.previous_velocity)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
         
+        # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
+        desired_linear_acceleration[(np.abs(current_velocity) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_acceleration) == np.sign(current_velocity))] = 0        
+        
+        # Calculating acceleration error
         linear_acceleration_error = desired_linear_acceleration - current_linear_acceleration
         
         # Integral-acceleration control

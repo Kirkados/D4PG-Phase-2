@@ -15,7 +15,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'hard_vel_cap0p05' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'hard_vel_cap3' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"

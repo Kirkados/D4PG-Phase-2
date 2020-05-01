@@ -7,6 +7,7 @@
 
 
 """
+import numpy as np
 
 class Settings:
 
@@ -15,8 +16,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'hard_vel_cap3' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_accel'
+    RUN_NAME               = 'augment_delay4_log8' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_accel_augment'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
@@ -110,9 +111,9 @@ class Settings:
     else:
         env = environment_file.Environment()
 
-    OBSERVATION_SIZE        = env.OBSERVATION_SIZE
-    UPPER_STATE_BOUND       = env.UPPER_STATE_BOUND
-    LOWER_STATE_BOUND       = env.LOWER_STATE_BOUND
+    OBSERVATION_SIZE        = env.OBSERVATION_SIZE + env.STATE_AUGMENT_LENGTH*env.ACTION_SIZE # augmenting the state with past actions
+    UPPER_STATE_BOUND       = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.STATE_AUGMENT_LENGTH)])
+    LOWER_STATE_BOUND       = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.STATE_AUGMENT_LENGTH)])
     ACTION_SIZE             = env.ACTION_SIZE
     LOWER_ACTION_BOUND      = env.LOWER_ACTION_BOUND
     UPPER_ACTION_BOUND      = env.UPPER_ACTION_BOUND
@@ -126,6 +127,7 @@ class Settings:
     IRRELEVANT_STATES       = env.IRRELEVANT_STATES
     TEST_ON_DYNAMICS        = env.TEST_ON_DYNAMICS
     KINEMATIC_NOISE         = env.KINEMATIC_NOISE
+    STATE_AUGMENT_LENGTH    = env.STATE_AUGMENT_LENGTH
 
     # Delete the test environment
     del env

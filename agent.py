@@ -41,7 +41,7 @@ class Agent:
         self.env_to_agent = env_to_agent
         self.agent_to_learner = agent_to_learner
         self.learner_to_agent = learner_to_agent
-
+        
         # Build this Agent's actor network
         self.build_actor()
 
@@ -99,6 +99,25 @@ class Agent:
 
         # Save the operation that performs the actor update
         self.update_actor_parameters = update_operations
+    
+    def reset_action_log(self):
+        # Create state-augmentation queue (holds previous actions)
+        self.past_actions = queue.Queue(maxsize = Settings.STATE_AUGMENT_LENGTH)
+        
+        # Fill it with zeros to start
+        for i in range(Settings.STATE_AUGMENT_LENGTH):
+            self.past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+            
+    def augment_state(self, total_state):
+        # Just received a total_state from the environment, need to augment 
+        # it with the past action data and return it
+        past_action_data = np.asarray(self.past_actions.queue).reshape([-1]) # past actions reshaped into a column
+        augmented_state = np.concatenate([total_state, past_action_data])
+        
+        # Remove the oldest entry from the action log queue
+        self.past_actions.get(False)
+        
+        return augmented_state
 
     def run(self, stop_run_flag, replay_buffer_dump_flag, starting_episode_number):
         # Runs the agent in its own environment
@@ -130,6 +149,10 @@ class Agent:
 
             # Clearing the N-step memory for this episode
             self.n_step_memory.clear()
+            
+            # Reset the action_log, if applicable
+            if Settings.STATE_AUGMENT_LENGTH > 0:
+                self.reset_action_log()
 
             # Checking if this is a test time (when we run an agent in a
             # noise-free environment to see how the training is going).
@@ -142,6 +165,10 @@ class Agent:
             else:
                 self.agent_to_env.put((False, test_time)) # Reset into a kinematics environment
             total_state = self.env_to_agent.get()
+            
+            # Augment total_state with past actions, if appropriate
+            if Settings.STATE_AUGMENT_LENGTH > 0:
+                total_state = self.augment_state(total_state)
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -188,6 +215,8 @@ class Agent:
                 ##### Running the Policy #####
                 ##############################
                 action = self.sess.run(self.policy.action_scaled, feed_dict = {self.state_placeholder: np.expand_dims(observation,0)})[0] # Expanding the observation to be a 1x3 instead of a 3
+                
+                
 
                 # Calculating random action to be added to the noise chosen from the policy to force exploration.
                 if Settings.UNIFORM_OR_GAUSSIAN_NOISE:
@@ -200,6 +229,10 @@ class Agent:
                 # Add exploration noise to original action, and clip it incase we've exceeded the action bounds
                 action = np.clip(action + exploration_noise, Settings.LOWER_ACTION_BOUND, Settings.UPPER_ACTION_BOUND)
 
+                # Adding the action taken to the past_action log
+                if Settings.STATE_AUGMENT_LENGTH > 0:
+                    self.past_actions.put(action)
+
                 ################################################
                 #### Step the dynamics forward one timestep ####
                 ################################################
@@ -211,6 +244,10 @@ class Agent:
 
                 # Add reward we just received to running total for this episode
                 episode_reward += reward
+                
+                # Augment total_state with past actions, if appropriate
+                if Settings.STATE_AUGMENT_LENGTH > 0:
+                    next_total_state = self.augment_state(next_total_state)
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     if not done:

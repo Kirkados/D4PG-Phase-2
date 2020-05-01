@@ -17,7 +17,7 @@ class Settings:
     ########################
 
     RUN_NAME               = 'augment_delay4_log8' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_accel_augment'
+    ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)

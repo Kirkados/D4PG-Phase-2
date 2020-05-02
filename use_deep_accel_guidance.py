@@ -8,6 +8,7 @@ from os import path, getenv
 from math import radians
 from time import sleep
 import numpy as np
+import queue
 
 # Deep guidance stuff
 import tensorflow as tf
@@ -67,18 +68,27 @@ def main():
             last_target_yaw = 0.0
             last_chaser_yaw = 0.0  
             total_time = 0.0
+            
+            if Settings.STATE_AUGMENT_LENGTH > 0:                    
+                # Create state-augmentation queue (holds previous actions)
+                past_actions = queue.Queue(maxsize = Settings.STATE_AUGMENT_LENGTH)
+                
+                # Fill it with zeros to start
+                for i in range(Settings.STATE_AUGMENT_LENGTH):
+                    past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+                
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
                 total_time = total_time + g.step
                 # print('G IDS : ',g.ids) # debug....
-                policy_input = np.zeros(12) # initializing policy input
+                policy_input = np.zeros(Settings.TOTAL_STATE_SIZE) # initializing policy input
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
                     
                     
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
-                                          chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot] 
+                                          chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot + (optional past action data)] 
                     
                     Note: chaser_theta_dot can be returned as a zero (it is discarded before being run through the network)
                     """
@@ -108,12 +118,20 @@ def main():
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
+                # Augment state with past action data if applicable
+                if Settings.STATE_AUGMENT_LENGTH > 0:                        
+                    past_action_data = np.asarray(past_actions.queue).reshape([-1]) # past actions reshaped into a column
+                    
+                    # Remove the oldest entry from the action log queue
+                    past_actions.get(False)
+                    
+                    # Concatenate past actions to the policy input
+                    policy_input = np.concatenate([policy_input, past_action_data])
                 
                 ############################################################
                 ##### Received data! Process it and return the result! #####
                 ############################################################
         	    # Calculating the proper policy input (deleting irrelevant states and normalizing input)
-                print(policy_input)
                 # Normalizing
                 if Settings.NORMALIZE_STATE:
                     normalized_policy_input = (policy_input - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
@@ -129,6 +147,10 @@ def main():
                 # Run processed state through the policy
                 deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:normalized_policy_input})[0]
                 # deep guidance = [ chaser_angular_velocity [counter-clockwise looking down from above], chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
+                
+                # Adding the action taken to the past_action log
+                if Settings.STATE_AUGMENT_LENGTH > 0:
+                    past_actions.put(deep_guidance)
         
                 # Send velocity/acceleration command to aircraft!
                 #g.move_at_ned_vel( yaw=-deep_guidance[0])

@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'augment_delay4_log8' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'augment_delay4_log5' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
@@ -127,6 +127,7 @@ class Settings:
     IRRELEVANT_STATES       = env.IRRELEVANT_STATES
     TEST_ON_DYNAMICS        = env.TEST_ON_DYNAMICS
     KINEMATIC_NOISE         = env.KINEMATIC_NOISE
+    TOTAL_STATE_SIZE        = env.TOTAL_STATE_SIZE
     STATE_AUGMENT_LENGTH    = env.STATE_AUGMENT_LENGTH
 
     # Delete the test environment

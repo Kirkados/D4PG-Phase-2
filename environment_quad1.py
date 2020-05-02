@@ -89,6 +89,8 @@ class Environment:
         self.N_STEP_RETURN            =   1
         self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                 =   0.2 # [s]
+        self.DYNAMICS_DELAY           =   4 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.STATE_AUGMENT_LENGTH     =   5 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
         self.END_ON_FALL              = False # end episode on a fall off the table
@@ -136,6 +138,7 @@ class Environment:
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_LIMIT           = 1000 # [irrelevanet here]
 
     ###################################
     ##### Seeding the environment #####
@@ -195,6 +198,12 @@ class Environment:
 
         # Resetting the differential reward
         self.previous_position_reward = [None, None, None, None]
+        
+        # Resetting the action delay queue
+        if self.DYNAMICS_DELAY > 0:
+            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY)
+            for i in range(self.DYNAMICS_DELAY - 1):
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
 
     #####################################
@@ -440,7 +449,12 @@ class Environment:
                 # Return the TOTAL_STATE
                 self.env_to_agent.put(np.concatenate((self.chaser_position, self.target_location)))
 
-            else:
+            else:                
+                # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
+                if self.DYNAMICS_DELAY > 0:
+                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack                    
+                    action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.  
+                    
                 ################################
                 ##### Step the environment #####
                 ################################

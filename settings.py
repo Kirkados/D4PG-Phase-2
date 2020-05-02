@@ -129,6 +129,7 @@ class Settings:
     KINEMATIC_NOISE         = env.KINEMATIC_NOISE
     TOTAL_STATE_SIZE        = env.TOTAL_STATE_SIZE
     STATE_AUGMENT_LENGTH    = env.STATE_AUGMENT_LENGTH
+    VELOCITY_LIMIT          = env.VELOCITY_LIMIT
 
     # Delete the test environment
     del env

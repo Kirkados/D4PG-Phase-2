@@ -151,6 +151,11 @@ def main():
                 # Adding the action taken to the past_action log
                 if Settings.STATE_AUGMENT_LENGTH > 0:
                     past_actions.put(deep_guidance)
+                    
+                # Limit guidance commands if velocity is too high!
+                # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
+                current_velocity = policy_input[8:11]
+                deep_guidance[np.concatenate((np.array([False]), (np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[1:]) == np.sign(current_velocity))))] = 0 
         
                 # Send velocity/acceleration command to aircraft!
                 #g.move_at_ned_vel( yaw=-deep_guidance[0])

@@ -201,8 +201,8 @@ class Environment:
         
         # Resetting the action delay queue
         if self.DYNAMICS_DELAY > 0:
-            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY)
-            for i in range(self.DYNAMICS_DELAY - 1):
+            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            for i in range(self.DYNAMICS_DELAY):
                 self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
 

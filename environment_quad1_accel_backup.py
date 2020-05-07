@@ -91,7 +91,7 @@ class Environment:
         self.N_STEP_RETURN            =   1
         self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                 =   0.2 # [s]
-        self.DYNAMICS_DELAY           =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.DYNAMICS_DELAY           =   4 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.STATE_AUGMENT_LENGTH     =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.TARGET_REWARD            =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY   =   0.
@@ -139,7 +139,6 @@ class Environment:
         self.PENALIZE_MAX_VELOCITY    = False
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
         self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
-        self.ACCELERATION_PENALTY     = 0.1 # [factor] how much to penalize all acceleration commands
 
     ###################################
     ##### Seeding the environment #####
@@ -203,8 +202,8 @@ class Environment:
         
         # Resetting the action delay queue
         if self.DYNAMICS_DELAY > 0:
-            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY + 1)
-            for i in range(self.DYNAMICS_DELAY):
+            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY)
+            for i in range(self.DYNAMICS_DELAY - 1):
                 self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
     #####################################
@@ -394,10 +393,6 @@ class Environment:
         # Giving a penalty for exceeding the recommended maximum velocity (decided by Murat)
         if self.PENALIZE_MAX_VELOCITY:
             reward -= self.MAX_VELOCITY_PENALTY*np.sum(np.abs(self.chaser_velocity[:-1]) > self.VELOCITY_LIMIT)
-            
-        
-        # Penalizing acceleration commands (to encourage fuel efficiency)
-        reward -= np.sum(self.ACCELERATION_PENALTY*np.abs(action))
 
         # Multiplying the reward by the TIMESTEP to give the rewards on a per-second basis
         return (reward*self.TIMESTEP).squeeze()
@@ -469,7 +464,7 @@ class Environment:
             else:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
                 if self.DYNAMICS_DELAY > 0:
-                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack                    
+                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
                     action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
                 
                 ################################

@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'small_buffer_small_timestep' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'augment_state_with_state_DELAY0' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
@@ -111,26 +111,32 @@ class Settings:
     else:
         env = environment_file.Environment()
 
-    OBSERVATION_SIZE        = env.OBSERVATION_SIZE + env.STATE_AUGMENT_LENGTH*env.ACTION_SIZE # augmenting the state with past actions
-    UPPER_STATE_BOUND       = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.STATE_AUGMENT_LENGTH)])
-    LOWER_STATE_BOUND       = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.STATE_AUGMENT_LENGTH)])
-    ACTION_SIZE             = env.ACTION_SIZE
-    LOWER_ACTION_BOUND      = env.LOWER_ACTION_BOUND
-    UPPER_ACTION_BOUND      = env.UPPER_ACTION_BOUND
-    NORMALIZE_STATE         = env.NORMALIZE_STATE # Normalize state on each timestep to avoid vanishing gradients
-    MIN_V                   = env.MIN_V
-    MAX_V                   = env.MAX_V
-    DISCOUNT_FACTOR         = env.DISCOUNT_FACTOR
-    N_STEP_RETURN           = env.N_STEP_RETURN
-    TIMESTEP                = env.TIMESTEP
-    MAX_NUMBER_OF_TIMESTEPS = env.MAX_NUMBER_OF_TIMESTEPS # per episode
-    IRRELEVANT_STATES       = env.IRRELEVANT_STATES
-    TEST_ON_DYNAMICS        = env.TEST_ON_DYNAMICS
-    KINEMATIC_NOISE         = env.KINEMATIC_NOISE
-    TOTAL_STATE_SIZE        = env.TOTAL_STATE_SIZE
-    STATE_AUGMENT_LENGTH    = env.STATE_AUGMENT_LENGTH
-    VELOCITY_LIMIT          = env.VELOCITY_LIMIT
-
+    OBSERVATION_SIZE                 = env.OBSERVATION_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE + env.AUGMENT_STATE_WITH_STATE_LENGTH*env.OBSERVATION_SIZE # augmenting the state with past actions and states
+    UPPER_STATE_BOUND                = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH), np.tile(env.UPPER_STATE_BOUND, env.AUGMENT_STATE_WITH_STATE_LENGTH)])
+    LOWER_STATE_BOUND                = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH), np.tile(env.LOWER_STATE_BOUND, env.AUGMENT_STATE_WITH_STATE_LENGTH)])
+    ACTION_SIZE                      = env.ACTION_SIZE
+    LOWER_ACTION_BOUND               = env.LOWER_ACTION_BOUND
+    UPPER_ACTION_BOUND               = env.UPPER_ACTION_BOUND
+    NORMALIZE_STATE                  = env.NORMALIZE_STATE # Normalize state on each timestep to avoid vanishing gradients
+    MIN_V                            = env.MIN_V
+    MAX_V                            = env.MAX_V
+    DISCOUNT_FACTOR                  = env.DISCOUNT_FACTOR
+    N_STEP_RETURN                    = env.N_STEP_RETURN
+    TIMESTEP                         = env.TIMESTEP
+    MAX_NUMBER_OF_TIMESTEPS          = env.MAX_NUMBER_OF_TIMESTEPS # per episode
+    IRRELEVANT_STATES                = env.IRRELEVANT_STATES.copy() # note: copy() is required or else there will only be one list with two references to it.
+    TEST_ON_DYNAMICS                 = env.TEST_ON_DYNAMICS
+    KINEMATIC_NOISE                  = env.KINEMATIC_NOISE
+    TOTAL_STATE_SIZE                 = env.TOTAL_STATE_SIZE
+    AUGMENT_STATE_WITH_ACTION_LENGTH = env.AUGMENT_STATE_WITH_ACTION_LENGTH
+    AUGMENT_STATE_WITH_STATE_LENGTH  = env.AUGMENT_STATE_WITH_STATE_LENGTH
+    VELOCITY_LIMIT                   = env.VELOCITY_LIMIT
+    
+    # Appropriately adding to IRRELEVANT_STATES so appended states who are irrelevant are also ignored.
+    for i in range(env.AUGMENT_STATE_WITH_STATE_LENGTH):
+        for j in range(len(env.IRRELEVANT_STATES)):
+            IRRELEVANT_STATES.append(env.IRRELEVANT_STATES[j] + env.TOTAL_STATE_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE + i*env.TOTAL_STATE_SIZE)
+            
     # Delete the test environment
     del env
 

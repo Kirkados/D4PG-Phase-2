@@ -74,36 +74,37 @@ class Environment:
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES        = [11] # indices of states who are irrelevant to the policy network
-        self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE              = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
-        self.LOWER_ACTION_BOUND       = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND       = np.array([ 90*np.pi/180,  2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND        = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0, -90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND        = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
-        self.NORMALIZE_STATE          = True # Normalize state on each timestep to avoid vanishing gradients
-        self.RANDOMIZE                = True # whether or not to RANDOMIZE the state & target location
-        self.INITIAL_CHASER_POSITION  = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
-        self.INITIAL_CHASER_VELOCITY  = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
-        self.INITIAL_TARGET_POSITION  = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
-        self.MIN_V                    = -200.
-        self.MAX_V                    =  400.
-        self.N_STEP_RETURN            =   1
-        self.DISCOUNT_FACTOR          =   0.95**(1/self.N_STEP_RETURN)
-        self.TIMESTEP                 =   0.2 # [s]
-        self.DYNAMICS_DELAY           =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.STATE_AUGMENT_LENGTH     =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
-        self.TARGET_REWARD            =   1. # reward per second
-        self.FALL_OFF_TABLE_PENALTY   =   0.
-        self.END_ON_FALL              = False # end episode on a fall off the table
-        self.GOAL_REWARD              =   0.
-        self.NEGATIVE_PENALTY_FACTOR  = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS  = 100 # per episode
-        self.ADDITIONAL_VALUE_INFO    = False # whether or not to include additional reward and value distribution information on the animations
-        self.REWARD_TYPE              = True # True = Linear; False = Exponential
-        self.REWARD_WEIGHTING         = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state
-        self.REWARD_MULTIPLIER        = 250 # how much to multiply the differential reward by
-        self.TOP_DOWN_VIEW            = False # Animation property
+        self.IRRELEVANT_STATES                = [6, 11] # indices of states who are irrelevant to the policy network
+        self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
+        self.ACTION_SIZE                      = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 90*np.pi/180,  2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0, -90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
+        self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
+        self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
+        self.INITIAL_CHASER_POSITION          = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
+        self.INITIAL_CHASER_VELOCITY          = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
+        self.INITIAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
+        self.MIN_V                            = -200.
+        self.MAX_V                            =  400.
+        self.N_STEP_RETURN                    =   1
+        self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
+        self.TIMESTEP                         =   0.2 # [s]
+        self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
+        self.TARGET_REWARD                    =   1. # reward per second
+        self.FALL_OFF_TABLE_PENALTY           =   0.
+        self.END_ON_FALL                      = False # end episode on a fall off the table
+        self.GOAL_REWARD                      =   0.
+        self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
+        self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode
+        self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
+        self.REWARD_TYPE                      = True # True = Linear; False = Exponential
+        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state
+        self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
+        self.TOP_DOWN_VIEW                    = False # Animation property
         
         # Obstacle properties
         self.USE_OBSTACLE              = False # Also change self.IRRELEVANT_STATES

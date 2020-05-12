@@ -98,7 +98,7 @@ class Environment:
         self.END_ON_FALL              = False # end episode on a fall off the table
         self.GOAL_REWARD              =   0.
         self.NEGATIVE_PENALTY_FACTOR  = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS  = 450 # per episode
+        self.MAX_NUMBER_OF_TIMESTEPS  = 100 # per episode
         self.ADDITIONAL_VALUE_INFO    = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE              = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING         = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state
@@ -747,7 +747,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Save the animation!
     try:
         # Save it to the working directory [have to], then move it to the proper folder
-        animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
+        animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 10, dpi = 100)
         # Make directory if it doesn't already exist
         os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
         # Move animation to the proper directory

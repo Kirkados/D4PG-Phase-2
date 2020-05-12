@@ -98,7 +98,7 @@ class Environment:
         self.END_ON_FALL              = False # end episode on a fall off the table
         self.GOAL_REWARD              =   0.
         self.NEGATIVE_PENALTY_FACTOR  = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS  = 450 # per episode -- 450 for stationary, 900 for rotating
+        self.MAX_NUMBER_OF_TIMESTEPS  = 450 # per episode
         self.ADDITIONAL_VALUE_INFO    = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE              = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING         = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state

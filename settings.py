@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'acceleration_penalty0p1' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'buffer10e7' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
@@ -58,7 +58,7 @@ class Settings:
     PRIORITY_EPSILON       = 0.00001      # Small value to be added to updated priorities to ensure no sample has a probability of 0 of being chosen
     DUMP_PRIORITY_REPLAY_BUFFER_EVER_NUM_ITERATIONS = 200 # Check if the prioritized replay buffer is overfulled every ## iterations. If so, dump the excess data
 
-    REPLAY_BUFFER_SIZE                    = 1000000
+    REPLAY_BUFFER_SIZE                    = 10000000
     REPLAY_BUFFER_START_TRAINING_FULLNESS = 0 # how full the buffer should be before training begins
     MINI_BATCH_SIZE                       = 256
 

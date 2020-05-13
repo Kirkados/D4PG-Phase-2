@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'augment_state_with_state_DELAY0' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'no_noise_decay' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
@@ -68,7 +68,7 @@ class Settings:
         NOISE_SCALE           = 1 # 1 is best for uniform -> noise scaled to the action range
     else:
         NOISE_SCALE           = 1/3 # standard deviation = 1/3 the action range. Therefore a 3-sigma action will cause full exploration in the worst case scenario
-    NOISE_SCALE_DECAY         = 0.9999 # 1 means the noise does not decay during training
+    NOISE_SCALE_DECAY         = 1#0.9999 # 1 means the noise does not decay during training
 
 #%%
     ####################################

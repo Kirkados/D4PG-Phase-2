@@ -53,6 +53,7 @@ import numpy as np
 import os
 import signal
 import multiprocessing
+import queue
 from scipy.integrate import odeint # Numerical integrator
 
 import matplotlib.pyplot as plt
@@ -204,7 +205,7 @@ class Environment:
         
         # Resetting the action delay queue
         if self.DYNAMICS_DELAY > 0:
-            self.action_delay_queue = multiprocessing.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
                 self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
@@ -470,7 +471,9 @@ class Environment:
             else:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
                 if self.DYNAMICS_DELAY > 0:
-                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack                    
+                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
+#                    if self.action_delay_queue.qsize() != (self.DYNAMICS_DELAY + 1):
+#                        print("Action delay queue is now of size ", self.action_delay_queue.qsize())
                     action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
                 
                 ################################

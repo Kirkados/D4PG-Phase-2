@@ -75,7 +75,7 @@ class Environment:
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES                = [6, 11] # indices of states who are irrelevant to the policy network
+        self.IRRELEVANT_STATES                = [11] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]

@@ -69,13 +69,21 @@ def main():
             last_chaser_yaw = 0.0  
             total_time = 0.0
             
-            if Settings.STATE_AUGMENT_LENGTH > 0:                    
+            if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                    
                 # Create state-augmentation queue (holds previous actions)
-                past_actions = queue.Queue(maxsize = Settings.STATE_AUGMENT_LENGTH)
+                past_actions = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_ACTION_LENGTH)
+        
+                # Fill it with zeros to start
+                for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
+                    past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+            
+            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0: 
+                # Create state-augmentation queue (holds previous raw total states)
+                past_states = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_STATE_LENGTH)
                 
                 # Fill it with zeros to start
-                for i in range(Settings.STATE_AUGMENT_LENGTH):
-                    past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+                for i in range(Settings.AUGMENT_STATE_WITH_STATE_LENGTH):
+                    past_states.put(np.zeros(Settings.TOTAL_STATE_SIZE), False)
                 
             while True:
                 # TODO: make better frequency managing
@@ -117,9 +125,12 @@ def main():
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
+                        
+                # Save raw policy input incase we want to augment state with it
+                raw_policy_input = policy_input
                     
                 # Augment state with past action data if applicable
-                if Settings.STATE_AUGMENT_LENGTH > 0:                        
+                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                        
                     past_action_data = np.asarray(past_actions.queue).reshape([-1]) # past actions reshaped into a column
                     
                     # Remove the oldest entry from the action log queue
@@ -127,7 +138,21 @@ def main():
                     
                     # Concatenate past actions to the policy input
                     policy_input = np.concatenate([policy_input, past_action_data])
-                
+                    
+                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
+                    past_state_data = np.asarray(past_states.queue).reshape([-1]) # past actions reshaped into a column
+                    
+                    # Remove the oldest entry from the state log queue
+                    past_states.get(False)
+                    
+                    # Add current policy input to past_states so they'll be included in the augmented state next timestep
+                    past_states.put(raw_policy_input, False)
+                    
+                    # Concatenate past states to the policy input
+                    policy_input = np.concatenate([policy_input, past_state_data])
+                    
+                    
+                    
                 ############################################################
                 ##### Received data! Process it and return the result! #####
                 ############################################################
@@ -149,7 +174,7 @@ def main():
                 # deep guidance = [ chaser_angular_velocity [counter-clockwise looking down from above], chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
                 
                 # Adding the action taken to the past_action log
-                if Settings.STATE_AUGMENT_LENGTH > 0:
+                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     past_actions.put(deep_guidance)
                     
                 # Limit guidance commands if velocity is too high!

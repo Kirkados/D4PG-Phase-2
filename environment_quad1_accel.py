@@ -88,8 +88,8 @@ class Environment:
         self.INITIAL_CHASER_VELOCITY          = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
         self.INITIAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                            = -200.
-        self.MAX_V                            =  400.
-        self.N_STEP_RETURN                    =   1
+        self.MAX_V                            =  300.
+        self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized

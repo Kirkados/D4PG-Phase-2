@@ -92,8 +92,8 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   6 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   6 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
@@ -472,8 +472,6 @@ class Environment:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
                 if self.DYNAMICS_DELAY > 0:
                     self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
-#                    if self.action_delay_queue.qsize() != (self.DYNAMICS_DELAY + 1):
-#                        print("Action delay queue is now of size ", self.action_delay_queue.qsize())
                     action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
                 
                 ################################
@@ -751,7 +749,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Save the animation!
     try:
         # Save it to the working directory [have to], then move it to the proper folder
-        animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 10, dpi = 100)
+        animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
         # Make directory if it doesn't already exist
         os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
         # Move animation to the proper directory

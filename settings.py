@@ -16,8 +16,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'sweep_delay_6' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_accel'
+    RUN_NAME               = 'vel_delay_2' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)

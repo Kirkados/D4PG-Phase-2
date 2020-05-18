@@ -90,15 +90,15 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
         self.END_ON_FALL                      = False # end episode on a fall off the table
         self.GOAL_REWARD                      =   0.
         self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode -- 450 for stationary, 900 for rotating
+        self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode -- 450 for stationary, 900 for rotating
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state

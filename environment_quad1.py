@@ -140,7 +140,7 @@ class Environment:
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
-        self.VELOCITY_LIMIT           = 1000 # [irrelevanet here]
+        self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
 
     ###################################
     ##### Seeding the environment #####

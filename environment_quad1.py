@@ -77,16 +77,16 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 4 # [x_dot, y_dot, z_dot, theta_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0, -90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
-        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0,  90*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.LOWER_ACTION_BOUND               = np.array([-0.05, -0.05, -0.05, -10*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.UPPER_ACTION_BOUND               = np.array([ 0.05,  0.05,  0.05,  10*np.pi/180]) # [m/s, m/s, m/s, rad/s]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.NOMINAL_INITIAL_POSITION         = np.array([0.0, 2.0, 0.0, 0.0])
         self.NOMINAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0])
-        self.MIN_V                            = -200.
-        self.MAX_V                            =  300.
+        self.MIN_V                            = -300.
+        self.MAX_V                            =  100.
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
@@ -98,7 +98,7 @@ class Environment:
         self.END_ON_FALL                      = False # end episode on a fall off the table
         self.GOAL_REWARD                      =   0.
         self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode -- 450 for stationary, 900 for rotating
+        self.MAX_NUMBER_OF_TIMESTEPS          = 450 # per episode -- 450 for stationary, 900 for rotating
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state
@@ -139,7 +139,7 @@ class Environment:
         self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02, 10]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.5/250] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
         self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
 
     ###################################

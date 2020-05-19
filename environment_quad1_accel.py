@@ -141,7 +141,7 @@ class Environment:
         self.PENALIZE_MAX_VELOCITY    = False
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
         self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
-        self.ACCELERATION_PENALTY     = 0.1 # [factor] how much to penalize all acceleration commands
+        self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
 
     ###################################
     ##### Seeding the environment #####

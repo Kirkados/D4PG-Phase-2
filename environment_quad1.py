@@ -77,16 +77,16 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 4 # [x_dot, y_dot, z_dot, theta_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-0.05, -0.05, -0.05, -10*np.pi/180]) # [m/s, m/s, m/s, rad/s]
-        self.UPPER_ACTION_BOUND               = np.array([ 0.05,  0.05,  0.05,  10*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.LOWER_ACTION_BOUND               = np.array([-2, -2, -2, -45*np.pi/180]) # [m/s, m/s, m/s, rad/s]
+        self.UPPER_ACTION_BOUND               = np.array([ 2,  2,  2,  45*np.pi/180]) # [m/s, m/s, m/s, rad/s]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, rad, m, m, m, rad] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.NOMINAL_INITIAL_POSITION         = np.array([0.0, 2.0, 0.0, 0.0])
         self.NOMINAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0])
-        self.MIN_V                            = -300.
-        self.MAX_V                            =  100.
+        self.MIN_V                            = -1500.
+        self.MAX_V                            =  0.
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
@@ -133,13 +133,13 @@ class Environment:
         self.TARGET_COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.PHASE_1_TIME             = 90 # [s] the time to automatically switch from phase 0 to phase 1 -> 45 for stationary; 90 for rotating
+        self.PHASE_1_TIME             = 900 # [s] the time to automatically switch from phase 0 to phase 1 -> 45 for stationary; 90 for rotating
         self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
         self.DOCKING_TOO_FAST_PENALTY = 0 # [rewards/s] penalty for docking too quickly
         self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02, 10]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.5/250] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_PENALTY         = [5, 5, 5, 5/250] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
         self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
 
     ###################################

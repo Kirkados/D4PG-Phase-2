@@ -1,8 +1,16 @@
 
 """
-This script provides the environment for a quadrotor tracking simulation.
+This script provides the environment for a quadrotor runway inspection simulation.
 
-A 6-dof quadrotor is tasked with tracking a moving target quadrotor.
+Three 4-dof quadrotors are tasked with inspecting a runway. They must learn to 
+work together as a team. Each cell of the runway needs to be inspected by any of 
+the three quadrotors. Rewards are only given when a new cell has been inspected.
+
+Each quadrotor knows where the other ones are. They all use the same policy network.
+They also all know the state of the runway and they all receive rewards when a 
+new cell is explored.
+
+Altitude is considered but heading is not considered.
 
 All dynamic environments I create will have a standardized architecture. The
 reason for this is I have one learning algorithm and many environments. All
@@ -29,24 +37,20 @@ Communication with agent:
         env_to_agent: the environment returns information to the agent
 
 Reward system:
-        - A reward is linearly decreased away from the target location.
-        - A "differential reward" system is used. The returned reward is the difference
-          between this timestep's reward and last timestep's reward. This yields
-          the effect of only positively rewarding behaviours that have a positive
-          effect on the performance.
-              Note: Otherwise, positive rewards could be given for bad actions.
-        - If the ensuing reward is negative, it is multiplied by NEGATIVE_PENALTY_FACTOR
-          so that the agent cannot fully recover from receiving negative rewards
-        - Additional penalties are awarded for colliding with the target
+        - A reward of +1 is given for finding an unexplored runway element
+        - Penaltys may be given for collisions or proportional to the distance 
+          between the quadrotors.
 
 State clarity:
-    - self.dynamic_state contains the chaser states propagated in the dynamics
-    - self.observation is passed to the agent and is a combination of the dynamic
-                       state and the target position
-    - self.OBSERVATION_SIZE 
+    - TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
+      TOTAL_STATE is returned from the environment to the agent.
+      A subset of the TOTAL_STATE, called the 'observation', is passed to the policy network to calculate acitons. This takes place in the agent
+      The TOTAL_STATE is passed to the animator below to animate the motion.
+      The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
+      The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
 
 
-Started April 21, 2020
+Started May 19, 2020
 @author: Kirk Hovell (khovell@gmail.com)
 """
 import numpy as np
@@ -67,19 +71,13 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.TOTAL_STATE_SIZE         = 12 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
-                                           #  chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot]
-        ### Note: TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
-        #         TOTAL_STATE is returned from the environment to the agent.
-        #         A subset of the TOTAL_STATE, called the 'observation', is passed to the policy network to calculate acitons. This takes place in the agent
-        #         The TOTAL_STATE is passed to the animator below to animate the motion.
-        #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
-        #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES                = [11] # indices of states who are irrelevant to the policy network
+        self.TOTAL_STATE_SIZE                 = 12 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
+                                                   #  other2_Vx, other2_Vy, other2_Vz, binary_runway_status]    
+        self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE                      = 4 # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-90*np.pi/180, -2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 90*np.pi/180,  2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0, -90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients

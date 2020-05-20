@@ -71,46 +71,41 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.TOTAL_STATE_SIZE                 = 12 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
-                                                   #  other2_Vx, other2_Vy, other2_Vz, binary_runway_status]    
+        self.BASE_STATE_SIZE                  = 18 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
+                                                   #  other2_Vx, other2_Vy, other2_Vz]  
+        self.RUNWAY_WIDTH                     = 30 # [m]
+        self.RUNWAY_LENGTH                    = 80 # [m]
+        self.RUNWAY_WIDTH_ELEMENTS            = 6 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 16 # [elements]
+        self.RUNWAY_STATE_SIZE                = self.RUNWAY_WIDTH_ELEMENTS * self.RUNWAY_LENGTH_ELEMENTS # how big the runway "grid" is                                                   
+        self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -4*2*np.pi, -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0, -90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  4*2*np.pi,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0,  90*np.pi/180]) # [m, m, m, rad, m, m, m, rad, m/s, m/s, m/s, rad/s] // upper bound for each element of TOTAL_STATE
+        self.LOWER_STATE_BOUND                = np.array([   0.,   0.,    0., -3., -3., -3.,   0.,   0.,   0., -3., -3., -3.,   0.,    0.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.array([ 100.,  100., 100.,  3.,  3.,  3., 100., 100., 100.,  3.,  3.,  3., 100.,  100., 100.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.INITIAL_CHASER_POSITION          = np.array([0.0, 2.0, 0.0, 0.0]) # [m, m, m, rad]
-        self.INITIAL_CHASER_VELOCITY          = np.array([0.0, 0.0, 0.0, 0.0]) # [m/s, m/s, m/s, rad/s]
-        self.INITIAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
+        self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 3.0]) # [m, m, m]
+        self.INITIAL_QUAD1_POSITION           = np.array([10.0, 10.0, 0.0]) # [m, m, m,]
+        self.INITIAL_QUAD1_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]
+        self.INITIAL_QUAD2_POSITION           = np.array([10.0, 90.0, 0.0]) # [m, m, m,]
+        self.INITIAL_QUAD2_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]
+        self.INITIAL_QUAD3_POSITION           = np.array([90.0, 10.0, 0.0]) # [m, m, m,]
+        self.INITIAL_QUAD3_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]        
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
-        self.TARGET_REWARD                    =   1. # reward per second
-        self.FALL_OFF_TABLE_PENALTY           =   0.
-        self.END_ON_FALL                      = False # end episode on a fall off the table
-        self.GOAL_REWARD                      =   0.
-        self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode
+        self.MAX_NUMBER_OF_TIMESTEPS          = 500 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
-        self.REWARD_TYPE                      = True # True = Linear; False = Exponential
-        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5, 0.1] # How much to weight the rewards in the state
-        self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
-        
-        # Obstacle properties
-        self.USE_OBSTACLE              = False # Also change self.IRRELEVANT_STATES
-        self.OBSTABLE_PENALTY          = 15 # [rewards/second] How bad is it to collide with the obstacle?
-        self.OBSTABLE_DISTANCE         = 0.2 # [m] radius of which the obstacle penalty will be applied
-        self.OBSTACLE_INITIAL_POSITION = np.array([1.2, 1.2, 1.2]) # [m]
-        self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
 
         # Test time properties
         self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
@@ -119,7 +114,6 @@ class Environment:
         self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KP                       = 0.5 # Proportional-velocity controller gain for attitude controller
         self.KI                       = 10.0 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
@@ -128,17 +122,11 @@ class Environment:
         self.INERTIA = 1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
         
         # Target collision properties
-        self.TARGET_COLLISION_DISTANCE = self.LENGTH # [m] how close chaser and target need to be before a penalty is applied
-        self.TARGET_COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
+        self.COLLISION_DISTANCE = self.LENGTH # [m] how close chaser and target need to be before a penalty is applied
+        self.COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
-        self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
-        self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5, 0.0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
-        self.PENALIZE_MAX_VELOCITY    = False
-        self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
-        self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
+        self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
         self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
 
     ###################################
@@ -165,31 +153,29 @@ class Environment:
         # If we are randomizing the initial conditions and state
         if self.RANDOMIZE:
             # Randomizing initial state
-            self.chaser_position = self.INITIAL_CHASER_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
-            # Randomizing target state
-            self.target_location = self.INITIAL_TARGET_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
+            self.quad1_position = self.INITIAL_QUAD1_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
+            self.quad2_position = self.INITIAL_QUAD2_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
+            self.quad3_position = self.INITIAL_QUAD3_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
 
         else:
             # Constant initial state
-            self.chaser_position = self.INITIAL_CHASER_POSITION
-            # Constant target location
-            self.target_location = self.INITIAL_TARGET_POSITION
+            self.quad1_position = self.INITIAL_QUAD1_POSITION
+            self.quad2_position = self.INITIAL_QUAD2_POSITION
+            self.quad3_position = self.INITIAL_QUAD3_POSITION
 
-        # Obstacle initial location (not randomized)
-        self.obstacle_location = self.OBSTACLE_INITIAL_POSITION
-        
-        # Docking port location
-        self.docking_port = self.target_location + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0., -np.pi])
-
-        # Hold point location
-        self.hold_point   = self.target_location + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0., -np.pi])
-
-        # Chaser has zero initial velocity
-        self.chaser_velocity = self.INITIAL_CHASER_VELOCITY
+        # Quadrotors' initial velocity is not randomized
+        self.quad1_velocity = self.INITIAL_QUAD1_VELOCITY
+        self.quad2_velocity = self.INITIAL_QUAD2_VELOCITY
+        self.quad3_velocity = self.INITIAL_QUAD3_VELOCITY
         
         # Initializing the previous velocity and control effort for the integral-acceleration controller
-        self.previous_velocity = np.zeros(3)
-        self.previous_linear_control_effort = np.zeros(3)
+        self.previous_quad1_velocity = np.zeros(len(self.INITIAL_QUAD1_VELOCITY))
+        self.previous_quad2_velocity = np.zeros(len(self.INITIAL_QUAD2_VELOCITY))
+        self.previous_quad3_velocity = np.zeros(len(self.INITIAL_QUAD3_VELOCITY))
+        
+        self.previous_quad1_linear_control_effort = np.zeros(len(self.INITIAL_QUAD1_VELOCITY))
+        self.previous_quad2_linear_control_effort = np.zeros(len(self.INITIAL_QUAD2_VELOCITY))
+        self.previous_quad3_linear_control_effort = np.zeros(len(self.INITIAL_QUAD3_VELOCITY))
         
         
         if use_dynamics:            
@@ -197,15 +183,16 @@ class Environment:
 
         # Resetting the time
         self.time = 0.
-
-        # Resetting the differential reward
-        self.previous_position_reward = [None, None, None, None]
         
         # Resetting the action delay queue
         if self.DYNAMICS_DELAY > 0:
-            self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            self.action_delay_queue_quad1 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            self.action_delay_queue_quad2 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            self.action_delay_queue_quad3 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
+                self.action_delay_queue_quad1.put(np.zeros(self.ACTION_SIZE), False)
+                self.action_delay_queue_quad2.put(np.zeros(self.ACTION_SIZE), False)
+                self.action_delay_queue_quad3.put(np.zeros(self.ACTION_SIZE), False)
 
     #####################################
     ##### Step the Dynamics forward #####

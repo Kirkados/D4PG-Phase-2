@@ -71,7 +71,8 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.BASE_STATE_SIZE                  = 18 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
+        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
+        self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 30 # [m]
         self.RUNWAY_LENGTH                    = 80 # [m]
@@ -88,7 +89,6 @@ class Environment:
         self.UPPER_STATE_BOUND                = np.concatenate([np.array([ 100.,  100., 100.,  3.,  3.,  3., 100., 100., 100.,  3.,  3.,  3., 100.,  100., 100.,  3.,  3.,  3.]),  np.ones(self.RUNWAY_STATE_SIZE)]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, repeated(explored)]   // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
         self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 3.0]) # [m, m, m]
         self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 0.0]) # [m, m, m,]     
         self.MIN_V                            = -200.
@@ -368,7 +368,8 @@ class Environment:
                 self.reset(actions, test_time[0])
                 
                 # Return the TOTAL_STATE
-                total_state = np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state])
+                print(self.quad_positions.shape, self.quad_velocities.shape, self.runway_state.shape)
+                total_state = np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state.reshape(-1)])
                 self.env_to_agent.put(total_state)
 
             else:
@@ -383,7 +384,7 @@ class Environment:
                 rewards, done = self.step(actions)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state]), rewards, done))
+                self.env_to_agent.put((np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state.reshape(-1)]), rewards, done))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####

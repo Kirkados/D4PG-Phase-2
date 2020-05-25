@@ -55,6 +55,9 @@ from prioritized_replay_buffer import PrioritizedReplayBuffer
 from settings import Settings
 import saver
 
+environment_file = __import__('environment_' + Settings.ENVIRONMENT)
+agent_file       = __import__('agent' + Settings.AGENT)
+
 #%%
 ##########################
 ##### SETTING UP RUN #####
@@ -180,7 +183,6 @@ with tf.Session(config = config) as sess:
         if Settings.USE_GPU_WHEN_AVAILABLE:
             # Allow GPU use when appropriate
             # Make an instance of the environment which will be placed in its own process
-            environment_file = __import__('environment_' + Settings.ENVIRONMENT)
             if Settings.ENVIRONMENT == 'gym':
                 environment = environment_file.Environment(filename, i+1, Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES, Settings.VIDEO_RECORD_FREQUENCY, Settings.MODEL_SAVE_DIRECTORY) # Additional parameters needed for gym
             else:
@@ -190,13 +192,12 @@ with tf.Session(config = config) as sess:
             # Generate the queue responsible for communicating with the agent
             agent_to_env, env_to_agent = environment.generate_queue()
             # Generate the actor
-            actor = Agent(sess, i+1, agent_to_env, env_to_agent, replay_buffer, writer, filename, learner.actor.parameters, agent_to_learner, learner_to_agent)
+            actor = agent_file.Agent(sess, i+1, agent_to_env, env_to_agent, replay_buffer, writer, filename, learner.actor.parameters, agent_to_learner, learner_to_agent)
 
         else:
             with tf.device('/device:CPU:0'):
                 # Forcing to the CPU only
                 # Make an instance of the environment which will be placed in its own process
-                environment_file = __import__('environment_' + Settings.ENVIRONMENT)
                 if Settings.ENVIRONMENT == 'gym':
                     environment = environment_file.Environment(filename, i+1, Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES, Settings.VIDEO_RECORD_FREQUENCY, Settings.MODEL_SAVE_DIRECTORY) # Additional parameters needed for gym
                 else:
@@ -206,7 +207,7 @@ with tf.Session(config = config) as sess:
                 # Generate the queue responsible for communicating with the agent
                 agent_to_env, env_to_agent = environment.generate_queue()
                 # Generate the actor
-                actor = Agent(sess, i+1, agent_to_env, env_to_agent, replay_buffer, writer, filename, learner.actor.parameters, agent_to_learner, learner_to_agent)
+                actor = agent_file.Agent(sess, i+1, agent_to_env, env_to_agent, replay_buffer, writer, filename, learner.actor.parameters, agent_to_learner, learner_to_agent)
 
         # Add thread and process to the list
         threads.append(threading.Thread(target = actor.run, args = (stop_run_flag, replay_buffer_dump_flag, starting_episode_number)))

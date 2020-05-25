@@ -16,9 +16,9 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'penalize_rotation_5' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'runway'
-    AGENT                  = 'runway'
+    RUN_NAME               = 'penalize_rotation_2_N1' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1'
+    AGENT                  = 'quad1'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)

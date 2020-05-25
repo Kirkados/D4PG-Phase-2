@@ -84,17 +84,13 @@ class Environment:
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND                = np.array([   0.,   0.,    0., -3., -3., -3.,   0.,   0.,   0., -3., -3., -3.,   0.,    0.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND                = np.array([ 100.,  100., 100.,  3.,  3.,  3., 100., 100., 100.,  3.,  3.,  3., 100.,  100., 100.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
+        self.LOWER_STATE_BOUND                = np.concatenate([np.array([   0.,   0.,    0., -3., -3., -3.,   0.,   0.,   0., -3., -3., -3.,   0.,    0.,   0., -3., -3., -3.]), np.zeros(self.RUNWAY_STATE_SIZE)]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, repeated(unexplored)] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.concatenate([np.array([ 100.,  100., 100.,  3.,  3.,  3., 100., 100., 100.,  3.,  3.,  3., 100.,  100., 100.,  3.,  3.,  3.]),  np.ones(self.RUNWAY_STATE_SIZE)]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, repeated(explored)]   // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
+        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
         self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 3.0]) # [m, m, m]
-        self.INITIAL_QUAD1_POSITION           = np.array([10.0, 10.0, 0.0]) # [m, m, m,]
-        self.INITIAL_QUAD1_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]
-        self.INITIAL_QUAD2_POSITION           = np.array([10.0, 90.0, 0.0]) # [m, m, m,]
-        self.INITIAL_QUAD2_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]
-        self.INITIAL_QUAD3_POSITION           = np.array([90.0, 10.0, 0.0]) # [m, m, m,]
-        self.INITIAL_QUAD3_VELOCITY           = np.array([ 0.0,  0.0, 0.0]) # [m/s, m/s, m/s]        
+        self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 0.0]) # [m, m, m,]     
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
         self.N_STEP_RETURN                    =   5
@@ -128,6 +124,7 @@ class Environment:
         # Additional properties
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
         self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
+        self.MINIMUM_CAMERA_ALTITUDE  = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
 
     ###################################
     ##### Seeding the environment #####
@@ -143,61 +140,53 @@ class Environment:
         """ NOTES:
                - if use_dynamics = True -> use dynamics
                - if test_time = True -> do not add "controller noise" to the kinematics
-        """
-        # Setting the default to be kinematics
-        self.dynamics_flag = False
+        """        
 
         # Logging whether it is test time for this episode
         self.test_time = test_time
+        
+        self.quad_positions = np.zeros([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
 
         # If we are randomizing the initial conditions and state
         if self.RANDOMIZE:
             # Randomizing initial state
-            self.quad1_position = self.INITIAL_QUAD1_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
-            self.quad2_position = self.INITIAL_QUAD2_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
-            self.quad3_position = self.INITIAL_QUAD3_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
+            for i in range(self.NUMBER_OF_QUADS):
+                self.quad_positions[i] = self.INITIAL_QUAD_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
 
         else:
             # Constant initial state
-            self.quad1_position = self.INITIAL_QUAD1_POSITION
-            self.quad2_position = self.INITIAL_QUAD2_POSITION
-            self.quad3_position = self.INITIAL_QUAD3_POSITION
+            for i in range(self.NUMBER_OF_QUADS):
+                self.quad_positions[i] = self.INITIAL_QUAD_POSITION
 
         # Quadrotors' initial velocity is not randomized
-        self.quad1_velocity = self.INITIAL_QUAD1_VELOCITY
-        self.quad2_velocity = self.INITIAL_QUAD2_VELOCITY
-        self.quad3_velocity = self.INITIAL_QUAD3_VELOCITY
+        self.quad_velocities = np.zeros([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
         
         # Initializing the previous velocity and control effort for the integral-acceleration controller
-        self.previous_quad1_velocity = np.zeros(len(self.INITIAL_QUAD1_VELOCITY))
-        self.previous_quad2_velocity = np.zeros(len(self.INITIAL_QUAD2_VELOCITY))
-        self.previous_quad3_velocity = np.zeros(len(self.INITIAL_QUAD3_VELOCITY))
-        
-        self.previous_quad1_linear_control_effort = np.zeros(len(self.INITIAL_QUAD1_VELOCITY))
-        self.previous_quad2_linear_control_effort = np.zeros(len(self.INITIAL_QUAD2_VELOCITY))
-        self.previous_quad3_linear_control_effort = np.zeros(len(self.INITIAL_QUAD3_VELOCITY))
-        
+        self.previous_quad_velocities = np.zeros([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
+        self.previous_linear_control_efforts = np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE])        
         
         if use_dynamics:            
             self.dynamics_flag = True # for this episode, dynamics will be used
+        else:
+            self.dynamics_flag = False # the default is to use kinematics
 
         # Resetting the time
         self.time = 0.
         
-        # Resetting the action delay queue
+        # Resetting the runway state
+        self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
+        self.previous_runway_value = 0
+        
+        # Resetting the action delay queue        
         if self.DYNAMICS_DELAY > 0:
-            self.action_delay_queue_quad1 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
-            self.action_delay_queue_quad2 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
-            self.action_delay_queue_quad3 = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
+            self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue_quad1.put(np.zeros(self.ACTION_SIZE), False)
-                self.action_delay_queue_quad2.put(np.zeros(self.ACTION_SIZE), False)
-                self.action_delay_queue_quad3.put(np.zeros(self.ACTION_SIZE), False)
+                self.action_delay_queue.put(np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE]), False)
 
     #####################################
     ##### Step the Dynamics forward #####
     #####################################
-    def step(self, action):
+    def step(self, actions):
 
         # Integrating forward one time step.
         # Returns initial condition on first row then next TIMESTEP on the next row
@@ -210,184 +199,122 @@ class Environment:
             ############################
 
             # Next, calculate the control effort
-            control_effort = self.controller(action)
+            control_efforts = self.controller(actions)
 
             # Anything additional that needs to be sent to the dynamics integrator
-            dynamics_parameters = [control_effort, self.MASS, self.INERTIA]
+            dynamics_parameters = [control_efforts, self.MASS, self.INERTIA, self.NUMBER_OF_QUADS, self.QUAD_POSITION_LENGTH]
 
             # Propagate the dynamics forward one timestep
-            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
+            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.quad_positions, self.quad_velocities]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
-            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
+            for i in range(self.NUMBER_OF_QUADS):
+                self.quad_positions[i]  = next_states[1,i*2*len(self.INITIAL_QUAD_POSITION):(i*2 + 1)*len(self.INITIAL_QUAD_POSITION)] # extract position
+                self.quad_velocities[i] = next_states[1,(i*2 + 1)*len(self.INITIAL_QUAD_POSITION):(i + 1)*2*len(self.INITIAL_QUAD_POSITION)] # extract velocity
             #self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
+            
+            print(next_states[1,:], self.quad_positions, self.quad_velocities)
 
         else:
 
             # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action, len(self.INITIAL_CHASER_POSITION)]
+            kinematics_parameters = [actions, self.NUMBER_OF_QUADS, self.INITIAL_QUAD_POSITION]
 
             ###############################
             #### PROPAGATE KINEMATICS #####
             ###############################
-            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
+            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.quad_positions, self.quad_velocities]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
-            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
-            self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
-
-            # Optionally, add noise to the kinematics to simulate "controller noise"
-            if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
-                 # Add some noise to the position part of the state
-                 self.chaser_position += np.random.randn(len(self.chaser_position)) * self.KINEMATIC_NOISE_SD
+            for i in range(self.NUMBER_OF_QUADS):
+                self.quad_positions[i]  = next_states[1,i*2*len(self.INITIAL_QUAD_POSITION):(i*2 + 1)*len(self.INITIAL_QUAD_POSITION)] # extract position
+                self.quad_velocities[i] = next_states[1,(i*2 + 1)*len(self.INITIAL_QUAD_POSITION):(i + 1)*2*len(self.INITIAL_QUAD_POSITION)] # extract velocity
+                self.quad_velocities[i] = np.clip(self.quad_velocities[i], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
 
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
         self.time += self.TIMESTEP
+        
+        # Update the state of the runway
+        self.check_runway()
 
         # Calculating the reward for this state-action pair
-        reward = self.reward_function(action)
+        reward = self.reward_function(actions)
 
         # Check if this episode is done
         done = self.is_done()
-        
-        # Step obstacle's position ahead one timestep
-        self.obstacle_location += self.OBSTABLE_VELOCITY*self.TIMESTEP
-
-        # Step target's attitude ahead one timestep
-        self.target_location[3] += self.TARGET_ANGULAR_VELOCITY*self.TIMESTEP
-
-        # Update the docking port target state
-        self.docking_port = self.target_location + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0., -np.pi])
-
-        # Update the hold point location
-        self.hold_point   = self.target_location + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0., -np.pi])
-
 
         # Return the (reward, done)
         return reward, done
 
-    def controller(self, action):
+    def controller(self, actions):
         # This function calculates the control effort based on the state and the
         # desired acceleration (action)
         
         ###########################################################
         ### Position control (integral-acceleration controller) ###
         ###########################################################
-        desired_linear_acceleration = action[1:]
+        desired_linear_accelerations = actions
         
-        current_velocity = self.chaser_velocity[:-1] # [v_x, v_y, v_z]
-        current_linear_acceleration = (current_velocity - self.previous_velocity)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        current_velocities = self.chaser_velocities # [v_x, v_y, v_z]
+        current_linear_acceleration = (current_velocities - self.previous_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
         
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-        desired_linear_acceleration[(np.abs(current_velocity) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_acceleration) == np.sign(current_velocity))] = 0        
+        desired_linear_accelerations[(np.abs(current_velocities) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_accelerations) == np.sign(current_velocities))] = 0        
         
         # Calculating acceleration error
-        linear_acceleration_error = desired_linear_acceleration - current_linear_acceleration
+        linear_acceleration_error = desired_linear_accelerations - current_linear_acceleration
         
         # Integral-acceleration control
         linear_control_effort = self.previous_linear_control_effort + self.KI * linear_acceleration_error
         
-        ###########################################################
-        ### Attitude control (proportional-velocity controller) ###
-        ###########################################################
-        desired_angular_rate = action[0]
-        current_angular_rate = self.chaser_velocity[-1]
-        
-        angular_rate_error = desired_angular_rate - current_angular_rate
-        
-        # Proportional-velocity control
-        angular_control_effort = self.KP * angular_rate_error
-        
-        
-        # Stacking the two [F_x, F_y, F_z, torque_about_z]
-        #print("Linear control effort: ", linear_control_effort, " Angular control effort ", np.array([angular_control_effort]))
-        control_effort = np.concatenate([linear_control_effort, np.array([angular_control_effort])])
-        
         # Saving the current velocity for the next timetsep
-        self.previous_velocity = current_velocity
+        self.previous_velocities = current_velocities
         
         # Saving the current control effort for the next timestep
         self.previous_linear_control_effort = linear_control_effort
 
-        return control_effort
+        return linear_control_effort
 
-    def pose_error(self):
+    def check_runway(self):
+        # This method updates the runway state based off the current quadrotor positions
+        """ The runway is 
+        self.RUNWAY_WIDTH                     = 12.5 # [m]
+        self.RUNWAY_LENGTH                    = 124 # [m]
+        self.RUNWAY_WIDTH_ELEMENTS            = 6 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 16 # [elements]
+        
         """
-        This method returns the pose error of the current state.
-        Instead of returning [state, desired_state] as the state, I'll return
-        [state, error]. The error will be more helpful to the policy I believe.
-        """
-        if self.phase_number == 0:
-            return self.hold_point - self.chaser_position
-        elif self.phase_number == 1:
-            return self.docking_port - self.chaser_position
+        each_runway_length_element = self.RUNWAY_LENGTH/self.RUNWAY_LENGTH_ELEMENTS
+        each_runway_width_element  = self.RUNWAY_WIDTH/self.RUNWAY_WIDTH_ELEMENTS
+        # Looping through each quad, determining which zone they've entered, and checking if that zone has been entered before
 
+        # Which zones are the quads in?
+        rows = np.floor(self.quad_positions[:,0]/each_runway_length_element)     
+        rows = np.delete(rows, (rows < 0) | (rows >= self.RUNWAY_LENGTH_ELEMENTS) | (self.quad_positions[:,2] < self.MINIMUM_CAMERA_ALTITUDE))
+        columns = np.floor(self.quad_positions[:,1]/each_runway_width_element)
+        columns = np.delete(columns, (columns < 0) | (columns >= self.RUNWAY_WIDTH_ELEMENTS) | (self.quad_positions[:,2] < self.MINIMUM_CAMERA_ALTITUDE))
+        
+        # If appropriate, mark the visited tiles as explored
+        self.runway_state[rows,columns] = 1
+        
 
     def reward_function(self, action):
         # Returns the reward for this TIMESTEP as a function of the state and action
-
-        # Sets the current location that we are trying to move to
-        desired_location = self.hold_point
-
-        current_position_reward = np.zeros(1)
-
-        # Calculates a reward map
-        if self.REWARD_TYPE:
-            # Linear reward
-            current_position_reward = -np.abs((desired_location - self.chaser_position)*self.REWARD_WEIGHTING)* self.TARGET_REWARD
-        else:
-            # Exponential reward
-            current_position_reward = np.exp(-np.sum(np.absolute(desired_location - self.chaser_position)*self.REWARD_WEIGHTING)) * self.TARGET_REWARD
-
-        reward = np.zeros(1)
-
-        # If it's not the first timestep, calculate the differential reward
-        if np.all([self.previous_position_reward[i] is not None for i in range(len(self.previous_position_reward))]):
-            reward = (current_position_reward - self.previous_position_reward)*self.REWARD_MULTIPLIER
-            for i in range(len(reward)):
-                if reward[i] < 0:
-                    reward[i]*= self.NEGATIVE_PENALTY_FACTOR
-
-        self.previous_position_reward = current_position_reward
-
-        # Collapsing to a scalar
-        reward = np.sum(reward)
-
-        # Giving a massive penalty for falling off the table
-        if self.chaser_position[0] > self.UPPER_STATE_BOUND[0] or self.chaser_position[0] < self.LOWER_STATE_BOUND[0] or self.chaser_position[1] > self.UPPER_STATE_BOUND[1] or self.chaser_position[1] < self.LOWER_STATE_BOUND[1]:
-            reward -= self.FALL_OFF_TABLE_PENALTY/self.TIMESTEP
-
-        # Giving a large reward for completing the task
-        if np.sum(np.absolute(self.chaser_position - desired_location)) < 0.01:
-            reward += self.GOAL_REWARD
-            
-        # Giving a large penalty for colliding with the obstacle
-        if np.linalg.norm(self.chaser_position[:len(self.chaser_position)-1] - self.obstacle_location) <= self.OBSTABLE_DISTANCE and self.USE_OBSTACLE:
-            reward -= self.OBSTABLE_PENALTY
-            
-        # Giving a penalty for colliding with the target
-        if np.linalg.norm(self.chaser_position[:len(self.chaser_position)-1] - self.target_location[:-1]) <= self.TARGET_COLLISION_DISTANCE:
-            reward -= self.TARGET_COLLISION_PENALTY
-            
-        # Giving a penalty for high velocities near the target location
-        if self.PENALIZE_VELOCITY:
-            radius = np.linalg.norm(desired_location[:2]- self.target_location[:2]) # vector from the target to the desired location
-            reference_velocity = self.TARGET_ANGULAR_VELOCITY*np.array([-radius*np.sin(self.target_location[2]), radius*np.cos(self.target_location[2]), 0, 1])
-            reward -= np.sum(np.abs(action - reference_velocity)/(self.pose_error()**2+0.01)*self.VELOCITY_PENALTY)
         
-        # Giving a penalty for exceeding the recommended maximum velocity (decided by Murat)
-        if self.PENALIZE_MAX_VELOCITY:
-            reward -= self.MAX_VELOCITY_PENALTY*np.sum(np.abs(self.chaser_velocity[:-1]) > self.VELOCITY_LIMIT)
-            
+        # Initializing the rewards to zero for all quads
+        rewards = np.zeros(self.NUMBER_OF_QUADS)
         
+        # Give rewards according to the change in runway state. A newly explored tile will yield a reward of +1
+        rewards += np.sum(self.runway_state) - self.previous_runway_value
+        
+        # Storing the current runway state for the next timestep
+        self.previous_runway_value = np.sum(self.runway_state)
+
         # Penalizing acceleration commands (to encourage fuel efficiency)
-        reward -= np.sum(self.ACCELERATION_PENALTY*np.abs(action))
+        rewards -= np.sum(self.ACCELERATION_PENALTY*np.abs(action), axis = 1)
 
-        # Multiplying the reward by the TIMESTEP to give the rewards on a per-second basis
-        return (reward*self.TIMESTEP).squeeze()
+        return rewards
 
     def is_done(self):
         # Checks if this episode is done or not
@@ -395,16 +322,12 @@ class Environment:
             NOTE: THE ENVIRONMENT MUST RETURN done = True IF THE EPISODE HAS
                   REACHED ITS LAST TIMESTEP
         """
-
-        # If we've fallen off the table, end the episode
-        if self.chaser_position[0] > self.UPPER_STATE_BOUND[0] or self.chaser_position[0] < self.LOWER_STATE_BOUND[0] or self.chaser_position[1] > self.UPPER_STATE_BOUND[1] or self.chaser_position[1] < self.LOWER_STATE_BOUND[1] or self.chaser_position[2] > self.UPPER_STATE_BOUND[2] or self.chaser_position[2] < self.LOWER_STATE_BOUND[2]:
-            done = self.END_ON_FALL
-        else:
-            done = False
-
-        # If we've spun too many times
-        if self.chaser_position[3] > self.UPPER_STATE_BOUND[3] or self.chaser_position[3] < self.LOWER_STATE_BOUND[3]:
-            pass
+        # Initializing
+        done = False
+        
+        # If we've explored the entire runway
+        if np.sum(self.runway_state) == self.RUNWAY_STATE_SIZE:
+            done = True
 
         # If we've run out of timesteps
         if round(self.time/self.TIMESTEP) == self.MAX_NUMBER_OF_TIMESTEPS:
@@ -420,11 +343,6 @@ class Environment:
 
         return self.agent_to_env, self.env_to_agent
     
-    def obstable_relative_location(self):
-        # Returns the position of the obstacle with respect to the chaser
-        relative_position = self.obstacle_location - self.chaser_position[:len(self.chaser_position)-1]
-        
-        return relative_position
 
     def run(self):
         ###################################
@@ -443,49 +361,53 @@ class Environment:
         # Loop until the process is terminated
         while True:
             # Blocks until the agent passes us an action
-            action, *test_time = self.agent_to_env.get()        
+            actions, *test_time = self.agent_to_env.get()        
 
-            if type(action) == bool:
+            if np.any(type(actions) == bool):
                 # The signal to reset the environment was received
-                self.reset(action, test_time[0])
+                self.reset(actions, test_time[0])
                 
                 # Return the TOTAL_STATE
-                total_state = np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ])
+                total_state = np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state])
                 self.env_to_agent.put(total_state)
 
             else:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
                 if self.DYNAMICS_DELAY > 0:
-                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
-                    action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
+                    self.action_delay_queue.put(actions,False) # puts the current action to the bottom of the stack
+                    actions = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
                 
                 ################################
                 ##### Step the environment #####
                 ################################                
-                reward, done = self.step(action)
+                rewards, done = self.step(actions)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done))
+                self.env_to_agent.put((np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state]), rewards, done))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####
 ###################################################################
 def kinematics_equations_of_motion(state, t, parameters):
-    # From the state, it returns the first derivative of the state
+    """ 
+    Returns the first derivative of the state
+    The state is [position, velocity]; its derivative is [velocity, acceleration]
+    """
     
     # Unpacking the action from the parameters
-    action = parameters[0]
-    position_length = parameters[1]
+    actions = parameters[0]
+    NUMBER_OF_QUADS = parameters[1]
+    QUAD_POSITION_LENGTH = parameters[2]
     
-    # state is [position, velocity]
-    # its derivative is [velocity, acceleration]
-    #position = state[:position_length] # [x, y, z, theta]
-    velocity = state[position_length:] # [x_dot, y_dot, z_dot, theta_dot] # Note: the velocity's theta_dot is irrelevant in kinematics.
-    
-    acceleration = action # [theta_dot, x_dot_dot, y_dot_dot, z_dot_dot]
+    # state = quad_positions, quad_velocities concatenated
+    #quad_positions  = state[:NUMBER_OF_QUADS*QUAD_POSITION_LENGTH]
+    quad_velocities = state[NUMBER_OF_QUADS*QUAD_POSITION_LENGTH:]
+
+    # Flattening the accelerations into a column
+    accelerations = actions.reshape(-1) # [x_dot_dot, y_dot_dot, z_dot_dot, x_dot_dot, y_dot_dot....]
 
     # Building the derivative matrix.
-    derivatives = np.concatenate([velocity[0:-1], np.concatenate([acceleration, np.zeros(1)]) ])
+    derivatives = np.concatenate([quad_velocities, accelerations]) #.squeeze()?
 
     return derivatives
 
@@ -494,15 +416,22 @@ def kinematics_equations_of_motion(state, t, parameters):
 ##### Generating the dynamics equations representing the motion #####
 #####################################################################
 def dynamics_equations_of_motion(state, t, parameters):
-    # state = [chaser_x, chaser_y, chaser_z, chaser_theta, chaser_Vx, chaser_Vy, chaser_Vz]
+    """ 
+    Returns the first derivative of the state
+    The state is [position, velocity]; its derivative is [velocity, acceleration]
+    """
+    # Unpacking the parameters
+    control_efforts, mass, inertia, NUMBER_OF_QUADS, QUAD_POSITION_LENGTH = parameters
 
     # Unpacking the state
-    x, y, z, theta, xdot, ydot, zdot, thetadot = state
-    control_effort, mass, inertia = parameters # unpacking parameters
-
-    derivatives = np.array((xdot, ydot, zdot, thetadot, control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass, control_effort[3]/inertia)).squeeze()
+    #quad_positions  = state[:NUMBER_OF_QUADS*QUAD_POSITION_LENGTH]
+    quad_velocities = state[NUMBER_OF_QUADS*QUAD_POSITION_LENGTH:]
     
-    #print("The achieved acceleration is ", control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass, control_effort[3]/inertia)
+    # Calculating accelerations = F/m
+    accelerations = control_efforts.reshape(-1)/mass
+
+    # Building derivatives array
+    derivatives = np.concatenate([quad_velocities, accelerations]) #.squeeze()?
 
     return derivatives
 

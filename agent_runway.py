@@ -158,6 +158,10 @@ class Agent:
 
         # Creating the temporary memory space for calculating N-step returns
         self.n_step_memory = deque()
+        
+        # Initializing the total_state
+        total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
+        next_total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
 
         # For all requested episodes or until user flags for a stop (via Ctrl + C)
         while episode_number <= Settings.NUMBER_OF_EPISODES and not stop_run_flag.is_set():
@@ -186,18 +190,31 @@ class Agent:
                 self.agent_to_env.put((True, test_time)) # Reset into a dynamics environment only if it's test time and desired
             else:
                 self.agent_to_env.put((False, test_time)) # Reset into a kinematics environment
-            total_state = self.env_to_agent.get()
+            quad_positions, quad_velocities, runway_state = self.env_to_agent.get()
+            
+            # Building NUMBER_OF_QUADS states
+            for i in range(Settings.NUMBER_OF_QUADS):
+                # Start state with your own 
+                this_quads_state = np.concatenate([quad_positions[i,:], quad_velocities[i,:]])               
+                # Add in the others' states, starting with the next quad and finishing with the previous quad
+                for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
+                    this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
+                
+                # All quad data is included, now append the runway state and save it to the total_state
+                total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)])
             
             # Saving the raw_total state for use in the optional state augmentation
-            raw_total_state = total_state
+            raw_unaugmented_unnormalized_total_state = total_states
             
             # Augment total_state with past actions, if appropriate
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                total_state = self.augment_state_with_actions(total_state)
+                total_states = self.augment_state_with_actions(total_states)
+                #TODO: fix this
                 
             # Augment total_state with past states, if appropriate
             if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                total_state = self.augment_state_with_states(total_state)            
+                total_states = self.augment_state_with_states(total_states)   
+                #TODO: Fix this
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -217,8 +234,7 @@ class Agent:
                     cumulative_reward_log = []
                     done_log = []
                     discount_factor_log = []
-                    guidance_position_log = []
-                    raw_total_state_log.append(total_state)
+                    raw_total_state_log.append(total_states)
 
             else:
                 # Regular training episode, use noise.
@@ -228,13 +244,13 @@ class Agent:
             # Normalizing the total_state to 1 separately along each dimension
             # to avoid the 'vanishing gradients' problem
             if Settings.NORMALIZE_STATE:
-                total_state = (total_state - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
+                total_states = (total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
 
             # Discarding irrelevant states to obtain the observation
-            observation = np.delete(total_state, Settings.IRRELEVANT_STATES)
+            observations = np.delete(total_states, Settings.IRRELEVANT_STATES, axis = 1)
 
             # Resetting items for this episode
-            episode_reward = 0
+            episode_rewards = np.zeros(Settings.NUMBER_OF_QUADS)
             timestep_number = 0
             done = False
 
@@ -243,9 +259,7 @@ class Agent:
                 ##############################
                 ##### Running the Policy #####
                 ##############################
-                action = self.sess.run(self.policy.action_scaled, feed_dict = {self.state_placeholder: np.expand_dims(observation,0)})[0] # Expanding the observation to be a 1x3 instead of a 3
-                
-                
+                actions = self.sess.run(self.policy.action_scaled, feed_dict = {self.state_placeholder: observations}) # [Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]                
 
                 # Calculating random action to be added to the noise chosen from the policy to force exploration.
                 if Settings.UNIFORM_OR_GAUSSIAN_NOISE:
@@ -253,121 +267,148 @@ class Agent:
                     exploration_noise = np.random.uniform(low = -Settings.ACTION_RANGE, high = Settings.ACTION_RANGE, size = Settings.ACTION_SIZE)*noise_scale
                 else:
                     # Gaussian noise (standard normal distribution scaled to half the action range)
-                    exploration_noise = np.random.normal(size = Settings.ACTION_SIZE)*Settings.ACTION_RANGE*noise_scale # random number multiplied by the action range
+                    exploration_noise = np.random.normal(size = [Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE])*Settings.ACTION_RANGE*noise_scale # random number multiplied by the action range
 
                 # Add exploration noise to original action, and clip it incase we've exceeded the action bounds
-                action = np.clip(action + exploration_noise, Settings.LOWER_ACTION_BOUND, Settings.UPPER_ACTION_BOUND)
+                actions = np.clip(actions + exploration_noise, Settings.LOWER_ACTION_BOUND, Settings.UPPER_ACTION_BOUND)
 
                 # Adding the action taken to the past_actions log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    self.past_actions.put(action)
+                    self.past_actions.put(actions)
+                    #TODO: this
                 
                 # Adding the old state taken to the past_states log
                 if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    self.past_states.put(raw_total_state)
+                    self.past_states.put(raw_unaugmented_unnormalized_total_state)
+                    # TODO: this
 
                 ################################################
                 #### Step the dynamics forward one timestep ####
                 ################################################
                 # Send the action to the environment process
-                self.agent_to_env.put((action,))
+                self.agent_to_env.put((actions,))
 
                 # Receive results from stepped environment
-                next_total_state, reward, done, *guidance_position = self.env_to_agent.get() # The * means the variable will be unpacked only if it exists
+                next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get() # The * means the variable will be unpacked only if it exists
+            
+                # Building NUMBER_OF_QUADS states
+                for i in range(Settings.NUMBER_OF_QUADS):
+                    # Start state with your own 
+                    this_quads_next_state = np.concatenate([next_quad_positions[i,:], next_quad_velocities[i,:]])               
+                    # Add in the others' states, starting with the next quad and finishing with the previous quad
+                    for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
+                        this_quads_next_state = np.concatenate([this_quads_next_state, next_quad_positions[j % Settings.NUMBER_OF_QUADS,:], next_quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
+                    
+                    # All quad data is included, now append the runway state and save it to the total_state
+                    next_total_states[i,:] = np.concatenate([this_quads_next_state, next_runway_state.reshape(-1)])
                 
-                # Saving the next_total_state as next_raw_total_state before performing any operations to it 
-                next_raw_total_state = next_total_state
+                
+                
+                # Saving the next_total_state as next_raw_unaugmented_unnormalized_total_state before performing any operations to it 
+                next_raw_unaugmented_unnormalized_total_state = next_total_states
 
                 # Add reward we just received to running total for this episode
-                episode_reward += reward
+                episode_rewards += rewards
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    next_total_state = self.augment_state_with_actions(next_total_state)
+                    next_total_states = self.augment_state_with_actions(next_total_states)
+                    #TODO:this
                 
                 # Augment total_state with past states, if appropriate
                 if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    next_total_state = self.augment_state_with_states(next_total_state)
+                    next_total_states = self.augment_state_with_states(next_total_states)
+                    #TODO:this
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     if not done:
-                        raw_total_state_log.append(next_total_state)
+                        raw_total_state_log.append(next_total_states)
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:
-                    next_total_state = (next_total_state - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
+                    next_total_states = (next_total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
 
                 # Discarding irrelevant states
-                next_observation = np.delete(next_total_state, Settings.IRRELEVANT_STATES)
+                next_observations = np.delete(next_total_states, Settings.IRRELEVANT_STATES, axis = 1)
 
                 # Store the data in this temporary buffer until we calculate the n-step return
-                self.n_step_memory.append((observation, action, reward))
+                self.n_step_memory.append((observations, actions, rewards))
 
                 # If the n-step memory is full enough and we aren't testing performance
-                if (len(self.n_step_memory) >= Settings.N_STEP_RETURN):
+                if (len(self.n_step_memory) >= Settings.N_STEP_RETURN) and not test_time:
                     # Grab the oldest data from the n-step memory
-                    observation_0, action_0, reward_0 = self.n_step_memory.popleft()
-                    # N-step reward starts with reward_0
-                    n_step_reward = reward_0
+                    observations_0, actions_0, rewards_0 = self.n_step_memory.popleft()
+                    # N-step rewards starts with rewards_0
+                    n_step_rewards = rewards_0
                     # Initialize gamma
                     discount_factor = Settings.DISCOUNT_FACTOR
-                    for (observation_i, action_i, reward_i) in self.n_step_memory:
+                    for (observations_i, actions_i, rewards_i) in self.n_step_memory:
                         # Calculate the n-step reward
-                        n_step_reward += reward_i*discount_factor
+                        n_step_rewards += rewards_i*discount_factor
                         discount_factor *= Settings.DISCOUNT_FACTOR # for the next step, gamma**(i+1)
 
                     # Dump data into large replay buffer
                     # If the prioritized replay buffer is currently dumping data,
                     # wait until that is done before adding more data to the buffer
                     replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
-                    self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
+                    
+                    # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
+                    # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
+                    # data per episode than before!
+                    for i in range(Settings.NUMBER_OF_QUADS):
+                        self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i,:], next_observations[i,:], done, discount_factor))
 
                     # If this episode is being rendered, log the state for rendering later
                     if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                        observation_log.append(observation_0)
-                        action_log.append(action_0)
-                        next_observation_log.append(next_observation)
-                        cumulative_reward_log.append(episode_reward)
-                        instantaneous_reward_log.append(n_step_reward)
+                        observation_log.append(observations_0)
+                        action_log.append(actions_0)
+                        next_observation_log.append(next_observations)
+                        cumulative_reward_log.append(episode_rewards)
+                        instantaneous_reward_log.append(n_step_rewards)
                         done_log.append(done)
                         discount_factor_log.append(discount_factor)
-                        guidance_position_log.append(guidance_position)
 
                 # End of timestep -> next state becomes current state
-                observation = next_observation
-                raw_total_state = next_raw_total_state
+                observations = next_observations
+                raw_unaugmented_unnormalized_total_state = next_raw_unaugmented_unnormalized_total_state
                 timestep_number += 1
 
                 # If this episode is done, drain the N-step buffer, calculate
                 # returns, and dump in replay buffer unless it is test time.
-                if done:
+                if done and not test_time:
                     # Episode has just finished, calculate the remaining N-step entries
                     while len(self.n_step_memory) > 0:
                         # Grab the oldest data from the n-step memory
-                        observation_0, action_0, reward_0 = self.n_step_memory.popleft()
+                        observations_0, actions_0, rewards_0 = self.n_step_memory.popleft()
                         # N-step reward starts with reward_0
-                        n_step_reward = reward_0
+                        n_step_rewards = rewards_0
                         # Initialize gamma
                         discount_factor = Settings.DISCOUNT_FACTOR
-                        for (observation_i, action_i, reward_i) in self.n_step_memory:
+                        for (observations_i, actions_i, rewards_i) in self.n_step_memory:
                             # Calculate the n-step reward
-                            n_step_reward += reward_i*discount_factor
+                            n_step_rewards += rewards_i*discount_factor
                             discount_factor *= Settings.DISCOUNT_FACTOR # for the next step, gamma**(i+1)
 
-                        # dump data into large replay buffer
-                        replay_buffer_dump_flag.wait()
-                        self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
+                        # Dump data into large replay buffer
+                    # If the prioritized replay buffer is currently dumping data,
+                    # wait until that is done before adding more data to the buffer
+                    replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
+                    
+                    # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
+                    # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
+                    # data per episode than before!
+                    for i in range(Settings.NUMBER_OF_QUADS):
+                        self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i,:], next_observations[i,:], done, discount_factor))
 
                         # If this episode is being rendered, log the state for rendering later
                         if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                            observation_log.append(observation_0)
-                            action_log.append(action_0)
-                            next_observation_log.append(next_observation)
-                            cumulative_reward_log.append(episode_reward)
-                            instantaneous_reward_log.append(n_step_reward)
+                            observation_log.append(observations_0)
+                            action_log.append(actions_0)
+                            next_observation_log.append(next_observations)
+                            cumulative_reward_log.append(episode_rewards)
+                            instantaneous_reward_log.append(n_step_rewards)
                             done_log.append(done)
                             discount_factor_log.append(discount_factor)
-                            guidance_position_log.append(guidance_position)
 
             ################################
             ####### Episode Complete #######
@@ -389,7 +430,7 @@ class Agent:
                     bins = np.linspace(Settings.MIN_V, Settings.MAX_V, Settings.NUMBER_OF_BINS)
 
                     # Render the episode
-                    environment_file.render(np.asarray(raw_total_state_log), np.asarray(action_log), np.asarray(instantaneous_reward_log), np.asarray(cumulative_reward_log), critic_distributions, target_critic_distributions, projected_target_distribution, bins, np.asarray(loss_log), np.squeeze(np.asarray(guidance_position_log)), episode_number, self.filename, Settings.MODEL_SAVE_DIRECTORY)
+                    environment_file.render(np.asarray(raw_total_state_log), np.asarray(action_log), np.asarray(instantaneous_reward_log), np.asarray(cumulative_reward_log), critic_distributions, target_critic_distributions, projected_target_distribution, bins, np.asarray(loss_log), episode_number, self.filename, Settings.MODEL_SAVE_DIRECTORY)
 
                 except queue.Empty:
                     print("Skipping this animation!")
@@ -408,7 +449,7 @@ class Agent:
             ######## Log training data to tensorboard #########
             ###################################################
             # Logging the number of timesteps and the episode reward.
-            feed_dict = {self.episode_reward_placeholder:  episode_reward, self.timestep_number_placeholder: timestep_number}
+            feed_dict = {self.episode_reward_placeholder:  episode_rewards, self.timestep_number_placeholder: timestep_number}
             if test_time:
                 summary = self.sess.run(self.test_time_episode_summary, feed_dict = feed_dict)
             else:

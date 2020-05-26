@@ -71,22 +71,19 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 5 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
-        self.RUNWAY_WIDTH                     = 30 # [m]
-        self.RUNWAY_LENGTH                    = 80 # [m]
-        self.RUNWAY_WIDTH_ELEMENTS            = 6 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 16 # [elements]
-        self.RUNWAY_STATE_SIZE                = self.RUNWAY_WIDTH_ELEMENTS * self.RUNWAY_LENGTH_ELEMENTS # how big the runway "grid" is                                                   
-        self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
+        self.RUNWAY_WIDTH                     = 124 # [m]
+        self.RUNWAY_LENGTH                    = 12.5 # [m]
+        self.RUNWAY_WIDTH_ELEMENTS            = 3 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 4 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
-        self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND                = np.concatenate([np.array([   0.,   0.,    0., -3., -3., -3.,   0.,   0.,   0., -3., -3., -3.,   0.,    0.,   0., -3., -3., -3.]), np.zeros(self.RUNWAY_STATE_SIZE)]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, repeated(unexplored)] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND                = np.concatenate([np.array([ 100.,  100., 100.,  3.,  3.,  3., 100., 100., 100.,  3.,  3.,  3., 100.,  100., 100.,  3.,  3.,  3.]),  np.ones(self.RUNWAY_STATE_SIZE)]) # [m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, m, m, m, m/s, m/s, m/s, repeated(explored)]   // upper bound for each element of TOTAL_STATE
+        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([  0.,   0.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s]
+        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([100., 100., 100.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 3.0]) # [m, m, m]
@@ -104,27 +101,36 @@ class Environment:
         self.TOP_DOWN_VIEW                    = False # Animation property
 
         # Test time properties
-        self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
-        self.KINEMATIC_NOISE          = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
-        self.KINEMATIC_NOISE_SD       = [0.02, 0.02, 0.02, np.pi/100] # The standard deviation of the noise that is to be applied to each element in the state
-        self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
+        self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time
+        self.KINEMATIC_NOISE                  = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
+        self.KINEMATIC_NOISE_SD               = [0.02, 0.02, 0.02, np.pi/100] # The standard deviation of the noise that is to be applied to each element in the state
+        self.FORCE_NOISE_AT_TEST_TIME         = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KI                       = 10.0 # Integral gain for the integral-linear acceleration controller
+        self.KI                               = 10.0 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
-        self.LENGTH  = 0.3  # [m] side length
-        self.MASS    = 10   # [kg]
-        self.INERTIA = 1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
+        self.LENGTH                           = 0.3  # [m] side length
+        self.MASS                             = 10   # [kg]
+        self.INERTIA                          = 1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
         
         # Target collision properties
-        self.COLLISION_DISTANCE = self.LENGTH # [m] how close chaser and target need to be before a penalty is applied
-        self.COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
+        self.COLLISION_DISTANCE               = self.LENGTH # [m] how close chaser and target need to be before a penalty is applied
+        self.COLLISION_PENALTY                = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
-        self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
-        self.MINIMUM_CAMERA_ALTITUDE  = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+        self.VELOCITY_LIMIT                   = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
+        self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
+        self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+        
+        
+        # Performing some calculations  
+        self.RUNWAY_STATE_SIZE                = self.RUNWAY_WIDTH_ELEMENTS * self.RUNWAY_LENGTH_ELEMENTS # how big the runway "grid" is                                                   
+        self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
+        self.LOWER_STATE_BOUND                = np.concatenate([np.tile(self.LOWER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.zeros(self.RUNWAY_STATE_SIZE)]) # lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
+        self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
+
 
     ###################################
     ##### Seeding the environment #####
@@ -367,10 +373,8 @@ class Environment:
                 # The signal to reset the environment was received
                 self.reset(actions, test_time[0])
                 
-                # Return the TOTAL_STATE
-                print(self.quad_positions.shape, self.quad_velocities.shape, self.runway_state.shape)
-                total_state = np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state.reshape(-1)])
-                self.env_to_agent.put(total_state)
+                # Return the TOTAL_STATE           
+                self.env_to_agent.put((self.quad_positions, self.quad_velocities, self.runway_state))
 
             else:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
@@ -384,7 +388,7 @@ class Environment:
                 rewards, done = self.step(actions)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate([self.quad_positions, self.quad_velocities, self.runway_state.reshape(-1)]), rewards, done))
+                self.env_to_agent.put((self.quad_positions, self.quad_velocities, self.runway_state, rewards, done))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####
@@ -440,7 +444,7 @@ def dynamics_equations_of_motion(state, t, parameters):
 ##########################################
 ##### Function to animate the motion #####
 ##########################################
-def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, guidance_position_log, episode_number, filename, save_directory):
+def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, episode_number, filename, save_directory):
 
     # Load in a temporary environment, used to grab the physical parameters
     temp_env = Environment()

@@ -16,9 +16,9 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'sweep_penalty_0p75' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1'
-    AGENT                  = ''
+    RUN_NAME               = 'runway_test' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_runway'
+    AGENT                  = '_runway'
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
@@ -33,7 +33,7 @@ class Settings:
     #############################
 
     # Hyperparameters
-    NUMBER_OF_ACTORS        = 10
+    NUMBER_OF_ACTORS        = 1
     NUMBER_OF_EPISODES      = 5e4 # that each agent will perform
     MAX_TRAINING_ITERATIONS = 1e6 # of neural networks
     ACTOR_LEARNING_RATE     = 0.0001
@@ -132,6 +132,7 @@ class Settings:
     AUGMENT_STATE_WITH_ACTION_LENGTH = env.AUGMENT_STATE_WITH_ACTION_LENGTH
     AUGMENT_STATE_WITH_STATE_LENGTH  = env.AUGMENT_STATE_WITH_STATE_LENGTH
     VELOCITY_LIMIT                   = env.VELOCITY_LIMIT
+    NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
     
     # Appropriately adding to IRRELEVANT_STATES so appended states who are irrelevant are also ignored.
     for i in range(env.AUGMENT_STATE_WITH_STATE_LENGTH):

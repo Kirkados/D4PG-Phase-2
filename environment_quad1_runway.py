@@ -59,6 +59,7 @@ import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
+import math # because numpy.floor doesn't return an integer
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -71,13 +72,13 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 5 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 15 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
-        self.RUNWAY_WIDTH                     = 124 # [m]
-        self.RUNWAY_LENGTH                    = 12.5 # [m]
-        self.RUNWAY_WIDTH_ELEMENTS            = 3 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 4 # [elements]
+        self.RUNWAY_WIDTH                     = 12.5 # [m]
+        self.RUNWAY_LENGTH                    = 20 # [m]
+        self.RUNWAY_WIDTH_ELEMENTS            = 10 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 10 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
@@ -208,10 +209,10 @@ class Environment:
             control_efforts = self.controller(actions)
 
             # Anything additional that needs to be sent to the dynamics integrator
-            dynamics_parameters = [control_efforts, self.MASS, self.INERTIA, self.NUMBER_OF_QUADS, self.QUAD_POSITION_LENGTH]
+            dynamics_parameters = [control_efforts, self.MASS, self.INERTIA, self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)]
 
             # Propagate the dynamics forward one timestep
-            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.quad_positions, self.quad_velocities]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
+            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.quad_positions.reshape(-1), self.quad_velocities.reshape(-1)]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
 
             # Saving the new state
             for i in range(self.NUMBER_OF_QUADS):
@@ -219,7 +220,6 @@ class Environment:
                 self.quad_velocities[i] = next_states[1,(i*2 + 1)*len(self.INITIAL_QUAD_POSITION):(i + 1)*2*len(self.INITIAL_QUAD_POSITION)] # extract velocity
             #self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
             
-            print(next_states[1,:], self.quad_positions, self.quad_velocities)
 
         else:
 
@@ -229,7 +229,7 @@ class Environment:
             ###############################
             #### PROPAGATE KINEMATICS #####
             ###############################
-            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.quad_positions, self.quad_velocities]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
+            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.quad_positions.reshape(-1), self.quad_velocities.reshape(-1)]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
             for i in range(self.NUMBER_OF_QUADS):
@@ -262,8 +262,8 @@ class Environment:
         ###########################################################
         desired_linear_accelerations = actions
         
-        current_velocities = self.chaser_velocities # [v_x, v_y, v_z]
-        current_linear_acceleration = (current_velocities - self.previous_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        current_velocities = self.quad_velocities
+        current_linear_acceleration = (current_velocities - self.previous_quad_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
         
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
         desired_linear_accelerations[(np.abs(current_velocities) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_accelerations) == np.sign(current_velocities))] = 0        
@@ -272,36 +272,41 @@ class Environment:
         linear_acceleration_error = desired_linear_accelerations - current_linear_acceleration
         
         # Integral-acceleration control
-        linear_control_effort = self.previous_linear_control_effort + self.KI * linear_acceleration_error
+        linear_control_effort = self.previous_linear_control_efforts + self.KI * linear_acceleration_error
         
         # Saving the current velocity for the next timetsep
         self.previous_velocities = current_velocities
         
         # Saving the current control effort for the next timestep
-        self.previous_linear_control_effort = linear_control_effort
+        self.previous_linear_control_efforts = linear_control_effort
 
         return linear_control_effort
 
     def check_runway(self):
         # This method updates the runway state based off the current quadrotor positions
         """ The runway is 
-        self.RUNWAY_WIDTH                     = 12.5 # [m]
-        self.RUNWAY_LENGTH                    = 124 # [m]
-        self.RUNWAY_WIDTH_ELEMENTS            = 6 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 16 # [elements]
+        self.RUNWAY_WIDTH (East)
+        self.RUNWAY_LENGTH (North)
+        self.RUNWAY_WIDTH_ELEMENTS
+        self.RUNWAY_LENGTH_ELEMENTS
         
         """
+        # The size of each runway grid element
         each_runway_length_element = self.RUNWAY_LENGTH/self.RUNWAY_LENGTH_ELEMENTS
         each_runway_width_element  = self.RUNWAY_WIDTH/self.RUNWAY_WIDTH_ELEMENTS
-        # Looping through each quad, determining which zone they've entered, and checking if that zone has been entered before
-
-        # Which zones are the quads in?
-        rows = np.floor(self.quad_positions[:,0]/each_runway_length_element)     
-        rows = np.delete(rows, (rows < 0) | (rows >= self.RUNWAY_LENGTH_ELEMENTS) | (self.quad_positions[:,2] < self.MINIMUM_CAMERA_ALTITUDE))
-        columns = np.floor(self.quad_positions[:,1]/each_runway_width_element)
-        columns = np.delete(columns, (columns < 0) | (columns >= self.RUNWAY_WIDTH_ELEMENTS) | (self.quad_positions[:,2] < self.MINIMUM_CAMERA_ALTITUDE))
         
-        # If appropriate, mark the visited tiles as explored
+        # Which zones is each quad in?
+        rows = np.floor(self.quad_positions[:,0]/each_runway_length_element).astype(int) # // divides and returns integers
+        columns = np.floor(self.quad_positions[:,1]//each_runway_width_element).astype(int) # // divides and returns integers
+
+        # Which zones are actually over the runway?
+        elements_to_keep = np.array((rows >= 0) & (rows < self.RUNWAY_LENGTH_ELEMENTS) & (self.quad_positions[:,2] >= self.MINIMUM_CAMERA_ALTITUDE) & (columns >= 0) & (columns < self.RUNWAY_WIDTH_ELEMENTS))
+        
+        # Removing runway elements that are not over the runway
+        rows = rows[elements_to_keep]
+        columns = columns[elements_to_keep]
+
+        # Mrk the visited tiles as explored
         self.runway_state[rows,columns] = 1
         
 

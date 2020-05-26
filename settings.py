@@ -19,7 +19,7 @@ class Settings:
     RUN_NAME               = 'runway_test' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway'
     AGENT                  = '_runway'
-    RECORD_VIDEO           = True
+    RECORD_VIDEO           = False
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
     LEARN_FROM_PIXELS      = False # False = learn from state (fully observed); True = learn from pixels (partially observed)

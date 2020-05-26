@@ -63,16 +63,24 @@ class Agent:
     def create_summary_functions(self):
         # Logging the timesteps used for each episode for each agent
         self.timestep_number_placeholder      = tf.placeholder(tf.float32)
-        self.episode_reward_placeholder       = tf.placeholder(tf.float32)
         timestep_number_summary               = tf.summary.scalar("Agent_" + str(self.n_agent) + "/Number_of_timesteps", self.timestep_number_placeholder)
-        episode_reward_summary                = tf.summary.scalar("Agent_" + str(self.n_agent) + "/Episode_reward", self.episode_reward_placeholder)
-        self.regular_episode_summary          = tf.summary.merge([timestep_number_summary, episode_reward_summary])
+        
+        # Logging each quad's reward separately
+        self.all_quads_episode_reward_placeholder = []
+        all_episode_reward_summaries = []
+        for i in range(Settings.NUMBER_OF_QUADS):
+            #self.episode_reward_placeholder       = tf.placeholder(tf.float32)
+            self.all_quads_episode_reward_placeholder.append(tf.placeholder(tf.float32))            
+            all_episode_reward_summaries.append(tf.summary.scalar("Agent_" + str(self.n_agent) + "/Episode_reward_quad_" + str(i), self.all_quads_episode_reward_placeholder[i]))
+        self.regular_episode_summary          = tf.summary.merge([timestep_number_summary, all_episode_reward_summaries])
 
         # If this is agent 1, the agent who will also test performance, additionally log the reward
         if self.n_agent == 1:
-            test_time_episode_reward_summary  = tf.summary.scalar("Test_agent/Episode_reward", self.episode_reward_placeholder)
+            test_time_episode_reward_summaries = []
+            for i in range(Settings.NUMBER_OF_QUADS):
+                test_time_episode_reward_summaries.append(tf.summary.scalar("Test_agent/Episode_reward_quad" + str(i), self.all_quads_episode_reward_placeholder[i]))
             test_time_timestep_number_summary = tf.summary.scalar("Test_agent/Number_of_timesteps", self.timestep_number_placeholder)
-            self.test_time_episode_summary    = tf.summary.merge([test_time_episode_reward_summary, test_time_timestep_number_summary])
+            self.test_time_episode_summary    = tf.summary.merge([test_time_episode_reward_summaries, test_time_timestep_number_summary])
 
 
     def build_actor(self):

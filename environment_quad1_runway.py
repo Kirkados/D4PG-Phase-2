@@ -59,7 +59,6 @@ import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
-import math # because numpy.floor doesn't return an integer
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -72,13 +71,13 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 15 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m]
         self.RUNWAY_LENGTH                    = 20 # [m]
-        self.RUNWAY_WIDTH_ELEMENTS            = 10 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 10 # [elements]
+        self.RUNWAY_WIDTH_ELEMENTS            = 2 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 2 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
@@ -209,22 +208,19 @@ class Environment:
             control_efforts = self.controller(actions)
 
             # Anything additional that needs to be sent to the dynamics integrator
-            dynamics_parameters = [control_efforts, self.MASS, self.INERTIA, self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)]
+            dynamics_parameters = [control_efforts, self.MASS, self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)]
 
             # Propagate the dynamics forward one timestep
             next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.quad_positions.reshape(-1), self.quad_velocities.reshape(-1)]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
 
             # Saving the new state
-            for i in range(self.NUMBER_OF_QUADS):
-                self.quad_positions[i]  = next_states[1,i*2*len(self.INITIAL_QUAD_POSITION):(i*2 + 1)*len(self.INITIAL_QUAD_POSITION)] # extract position
-                self.quad_velocities[i] = next_states[1,(i*2 + 1)*len(self.INITIAL_QUAD_POSITION):(i + 1)*2*len(self.INITIAL_QUAD_POSITION)] # extract velocity
-            #self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
-            
+            self.quad_positions  = next_states[1,:self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION)].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
+            self.quad_velocities = next_states[1,self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION):].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
 
         else:
 
             # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [actions, self.NUMBER_OF_QUADS, self.INITIAL_QUAD_POSITION]
+            kinematics_parameters = [actions, self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)]
 
             ###############################
             #### PROPAGATE KINEMATICS #####
@@ -232,10 +228,9 @@ class Environment:
             next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.quad_positions.reshape(-1), self.quad_velocities.reshape(-1)]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            for i in range(self.NUMBER_OF_QUADS):
-                self.quad_positions[i]  = next_states[1,i*2*len(self.INITIAL_QUAD_POSITION):(i*2 + 1)*len(self.INITIAL_QUAD_POSITION)] # extract position
-                self.quad_velocities[i] = next_states[1,(i*2 + 1)*len(self.INITIAL_QUAD_POSITION):(i + 1)*2*len(self.INITIAL_QUAD_POSITION)] # extract velocity
-                self.quad_velocities[i] = np.clip(self.quad_velocities[i], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
+            self.quad_positions  = next_states[1,:self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION)].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
+            self.quad_velocities = next_states[1,self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION):].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
+            self.quad_velocities = np.clip(self.quad_velocities, -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
 
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
@@ -264,7 +259,6 @@ class Environment:
         
         current_velocities = self.quad_velocities
         current_linear_acceleration = (current_velocities - self.previous_quad_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
-        
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
         desired_linear_accelerations[(np.abs(current_velocities) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_accelerations) == np.sign(current_velocities))] = 0        
         
@@ -431,7 +425,7 @@ def dynamics_equations_of_motion(state, t, parameters):
     The state is [position, velocity]; its derivative is [velocity, acceleration]
     """
     # Unpacking the parameters
-    control_efforts, mass, inertia, NUMBER_OF_QUADS, QUAD_POSITION_LENGTH = parameters
+    control_efforts, mass, NUMBER_OF_QUADS, QUAD_POSITION_LENGTH = parameters
 
     # Unpacking the state
     #quad_positions  = state[:NUMBER_OF_QUADS*QUAD_POSITION_LENGTH]
@@ -450,6 +444,9 @@ def dynamics_equations_of_motion(state, t, parameters):
 ##### Function to animate the motion #####
 ##########################################
 def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, episode_number, filename, save_directory):
+    
+    print(states.shape, actions.shape)
+    raise SystemExit
 
     # Load in a temporary environment, used to grab the physical parameters
     temp_env = Environment()

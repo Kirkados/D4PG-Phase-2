@@ -133,13 +133,14 @@ class Environment:
         self.TARGET_COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
+        self.NUMBER_OF_QUADS          = 2 # [total quads used here (Only relevant for the runway environment)]
         self.PHASE_1_TIME             = 900 # [s] the time to automatically switch from phase 0 to phase 1 -> 45 for stationary; 90 for rotating
         self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
         self.DOCKING_TOO_FAST_PENALTY = 0 # [rewards/s] penalty for docking too quickly
         self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02, 10]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [8, 8, 8, 8/250] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_PENALTY         = [3, 3, 3, 3/250] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
         self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
 
     ###################################

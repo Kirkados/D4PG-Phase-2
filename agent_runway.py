@@ -342,8 +342,8 @@ class Agent:
                 # Store the data in this temporary buffer until we calculate the n-step return
                 self.n_step_memory.append((observations, actions, rewards))
 
-                # If the n-step memory is full enough and we aren't testing performance
-                if (len(self.n_step_memory) >= Settings.N_STEP_RETURN) and not test_time:
+                # If the n-step memory is full enough
+                if (len(self.n_step_memory) >= Settings.N_STEP_RETURN):
                     # Grab the oldest data from the n-step memory
                     observations_0, actions_0, rewards_0 = self.n_step_memory.popleft()
                     # N-step rewards starts with rewards_0
@@ -362,9 +362,10 @@ class Agent:
                     
                     # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
                     # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
-                    # data per episode than before!
-                    for i in range(Settings.NUMBER_OF_QUADS):
-                        self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i,:], next_observations[i,:], done, discount_factor))
+                    # data per episode than before! Log data only if it is not test time data
+                    if not test_time:                        
+                        for i in range(Settings.NUMBER_OF_QUADS):                        
+                            self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
 
                     # If this episode is being rendered, log the state for rendering later
                     if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
@@ -382,8 +383,8 @@ class Agent:
                 timestep_number += 1
 
                 # If this episode is done, drain the N-step buffer, calculate
-                # returns, and dump in replay buffer unless it is test time.
-                if done and not test_time:
+                # returns, and dump in replay buffer.
+                if done:
                     # Episode has just finished, calculate the remaining N-step entries
                     while len(self.n_step_memory) > 0:
                         # Grab the oldest data from the n-step memory
@@ -404,19 +405,20 @@ class Agent:
                     
                     # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
                     # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
-                    # data per episode than before!
-                    for i in range(Settings.NUMBER_OF_QUADS):
-                        self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i,:], next_observations[i,:], done, discount_factor))
+                    # data per episode than before! Log data only if it is not test time data
+                    if not test_time:                        
+                        for i in range(Settings.NUMBER_OF_QUADS):                        
+                            self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
 
-                        # If this episode is being rendered, log the state for rendering later
-                        if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                            observation_log.append(observations_0)
-                            action_log.append(actions_0)
-                            next_observation_log.append(next_observations)
-                            cumulative_reward_log.append(episode_rewards)
-                            instantaneous_reward_log.append(n_step_rewards)
-                            done_log.append(done)
-                            discount_factor_log.append(discount_factor)
+                    # If this episode is being rendered, log the state for rendering later
+                    if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
+                        observation_log.append(observations_0)
+                        action_log.append(actions_0)
+                        next_observation_log.append(next_observations)
+                        cumulative_reward_log.append(episode_rewards)
+                        instantaneous_reward_log.append(n_step_rewards)
+                        done_log.append(done)
+                        discount_factor_log.append(discount_factor)
 
             ################################
             ####### Episode Complete #######
@@ -426,9 +428,11 @@ class Agent:
                 print("Rendering Actor %i at episode %i" % (self.n_agent, episode_number))
 
                 os.makedirs(os.path.dirname(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/'), exist_ok=True)
-                np.savetxt(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/' + str(episode_number) + '.txt',np.asarray(raw_total_state_log))
+                print(np.asarray(raw_total_state_log).reshape([timestep_number, -1]).shape)
+                np.savetxt(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/' + str(episode_number) + '.txt',np.asarray(raw_total_state_log).reshape([timestep_number, -1]))
 
                 # Ask the learner to tell us the value distributions of the state-action pairs encountered in this episode
+                print(np.asarray(observation_log))
                 self.agent_to_learner.put((np.asarray(observation_log), np.asarray(action_log), np.asarray(next_observation_log), np.asarray(instantaneous_reward_log), np.asarray(done_log), np.asarray(discount_factor_log)))
 
                 # Wait for the results
@@ -457,7 +461,10 @@ class Agent:
             ######## Log training data to tensorboard #########
             ###################################################
             # Logging the number of timesteps and the episode reward.
-            feed_dict = {self.episode_reward_placeholder:  episode_rewards, self.timestep_number_placeholder: timestep_number}
+
+            feed_dict = {i: d for i, d in zip(self.all_quads_episode_reward_placeholder, episode_rewards)}
+            feed_dict[self.timestep_number_placeholder] = timestep_number # adding the timestep into the dict separately
+
             if test_time:
                 summary = self.sess.run(self.test_time_episode_summary, feed_dict = feed_dict)
             else:

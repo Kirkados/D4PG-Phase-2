@@ -63,6 +63,8 @@ from scipy.integrate import odeint # Numerical integrator
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection # to shade the runway in a 3D plot
 from mpl_toolkits.mplot3d import Axes3D
 
 class Environment:
@@ -71,7 +73,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 12 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m]
@@ -82,12 +84,12 @@ class Environment:
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([  0.,   0.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s]
-        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([100., 100., 100.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s]
+        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s]
+        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  30.,  30.,  20.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 3.0]) # [m, m, m]
-        self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 0.0]) # [m, m, m,]     
+        self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 0.0]) # [m, m, m]
+        self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 5.0]) # [m, m, m,]     
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
         self.N_STEP_RETURN                    =   5
@@ -96,7 +98,7 @@ class Environment:
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
-        self.MAX_NUMBER_OF_TIMESTEPS          = 500 # per episode
+        self.MAX_NUMBER_OF_TIMESTEPS          = 50 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = False # Animation property
 
@@ -444,9 +446,22 @@ def dynamics_equations_of_motion(state, t, parameters):
 ##### Function to animate the motion #####
 ##########################################
 def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, episode_number, filename, save_directory):
+    """
+    states = [# timesteps, # quads, total_state_size]
+    action = [# timesteps, # quads, action_size]
+    instantaneous_reward_log = [# timesteps, # quads]
+    cumulative_reward_log = [# timesteps, # quads]
     
-    print(states.shape, actions.shape)
-    raise SystemExit
+    ===FOR QUAD 0 ONLY===
+    critic_distributions
+    target_critic_distributions
+    projected_target_distribution
+    
+    
+    Animate a variable number of quadrotors inspecting a runway.
+    - Plot 3D cube of any number of quads
+    - Plot the runway and shade in elements as they become discovered (as listed in the state)
+    """
 
     # Load in a temporary environment, used to grab the physical parameters
     temp_env = Environment()
@@ -454,73 +469,28 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Checking if we want the additional reward and value distribution information
     extra_information = temp_env.ADDITIONAL_VALUE_INFO
 
-    # Unpacking state
-    chaser_x, chaser_y, chaser_z, chaser_theta = states[:,0], states[:,1], states[:,2], states[:,3]
-    
-    target_x, target_y, target_z, target_theta = states[:,4], states[:,5], states[:,6], states[:,7]
-
     # Extracting physical properties
     length = temp_env.LENGTH
 
-    ### Calculating spacecraft corner locations through time ###
+    ### Calculating quadrotor corner locations through time ###
     
     # Corner locations in body frame    
-    chaser_body_body_frame = length/2.*np.array([[[1],[-1],[1]],
-                                                [[-1],[-1],[1]],
-                                                [[-1],[-1],[-1]],
-                                                [[1],[-1],[-1]],
-                                                [[-1],[-1],[-1]],
-                                                [[-1],[1],[-1]],
-                                                [[1],[1],[-1]],
-                                                [[-1],[1],[-1]],
-                                                [[-1],[1],[1]],
-                                                [[1],[1],[1]],
-                                                [[-1],[1],[1]],
-                                                [[-1],[-1],[1]]]).squeeze().T
-    
-    chaser_front_face_body_frame = length/2.*np.array([[[1],[-1],[1]],
-                                                       [[1],[1],[1]],
-                                                       [[1],[1],[-1]],
-                                                       [[1],[-1],[-1]],
-                                                       [[1],[-1],[1]]]).squeeze().T
-
-    # Rotation matrix (body -> inertial)
-    C_Ib = np.moveaxis(np.array([[np.cos(chaser_theta),       -np.sin(chaser_theta),        np.zeros(len(chaser_theta))],
-                                 [np.sin(chaser_theta),        np.cos(chaser_theta),        np.zeros(len(chaser_theta))],
-                                 [np.zeros(len(chaser_theta)), np.zeros(len(chaser_theta)), np.ones(len(chaser_theta))]]), source = 2, destination = 0) # [NUM_TIMESTEPS, 3, 3]
-    
-    # Rotating body frame coordinates to inertial frame
-    chaser_body_inertial       = np.matmul(C_Ib, chaser_body_body_frame)       + np.array([chaser_x, chaser_y, chaser_z]).T.reshape([-1,3,1])
-    chaser_front_face_inertial = np.matmul(C_Ib, chaser_front_face_body_frame) + np.array([chaser_x, chaser_y, chaser_z]).T.reshape([-1,3,1])
-
-    ### Calculating target spacecraft corner locations through time ###
-    
-    # Corner locations in body frame    
-    target_body_frame = length/2.*np.array([[[1],[-1],[1]],
-                                           [[-1],[-1],[1]],
-                                           [[-1],[-1],[-1]],
-                                           [[1],[-1],[-1]],
-                                           [[-1],[-1],[-1]],
-                                           [[-1],[1],[-1]],
-                                           [[1],[1],[-1]],
-                                           [[-1],[1],[-1]],
-                                           [[-1],[1],[1]],
-                                           [[1],[1],[1]],
-                                           [[-1],[1],[1]],
-                                           [[-1],[-1],[1]]]).squeeze().T
-        
-    target_front_face_body_frame = length/2.*np.array([[[1],[-1],[1]],
-                                                       [[1],[1],[1]],
-                                                       [[1],[1],[-1]],
-                                                       [[1],[-1],[-1]],
-                                                       [[1],[-1],[1]]]).squeeze().T
-
-    # Rotation matrix (body -> inertial)
-    C_Ib = np.moveaxis(np.array([[np.cos(target_theta),       -np.sin(target_theta),        np.zeros(len(target_theta))],
-                                 [np.sin(target_theta),        np.cos(target_theta),        np.zeros(len(target_theta))],
-                                 [np.zeros(len(target_theta)), np.zeros(len(target_theta)), np.ones(len(target_theta))]]), source = 2, destination = 0) # [NUM_TIMESTEPS, 3, 3]
-    target_body_inertial = np.matmul(C_Ib, target_body_frame)+ np.array([target_x, target_y, target_z]).T.reshape([-1,3,1])
-    target_front_face_inertial = np.matmul(C_Ib, target_front_face_body_frame) + np.array([target_x, target_y, target_z]).T.reshape([-1,3,1])
+    quad_body_body_frame = length/2.*np.array([[[1],[-1],[1]],
+                                              [[-1],[-1],[1]],
+                                              [[-1],[-1],[-1]],
+                                              [[1],[-1],[-1]],
+                                              [[1],[-1],[1]],
+                                              [[1],[1],[1]],
+                                              [[-1],[1],[1]],
+                                              [[-1],[-1],[1]],
+                                              [[-1],[-1],[-1]],
+                                              [[-1],[1],[-1]],
+                                              [[-1],[1],[1]],
+                                              [[-1],[1],[-1]],
+                                              [[1],[1],[-1]],
+                                              [[1],[1],[1]],
+                                              [[1],[1],[-1]],
+                                              [[1],[-1],[-1]]]).squeeze()
 
     # Generating figure window
     figure = plt.figure(constrained_layout = True)
@@ -528,8 +498,8 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
 
     if extra_information:
         grid_spec = gridspec.GridSpec(nrows = 2, ncols = 3, figure = figure)
-        subfig1 = figure.add_subplot(grid_spec[0,0], projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (-5, 5), ylim3d = (-5, 5), zlim3d = (0, 10), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z (m)')
-        subfig2 = figure.add_subplot(grid_spec[0,1], xlim = (np.min([np.min(instantaneous_reward_log), 0]) - (np.max(instantaneous_reward_log) - np.min(instantaneous_reward_log))*0.02, np.max([np.max(instantaneous_reward_log), 0]) + (np.max(instantaneous_reward_log) - np.min(instantaneous_reward_log))*0.02), ylim = (-0.5, 0.5))
+        subfig1 = figure.add_subplot(grid_spec[0,0], projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[0], temp_env.UPPER_STATE_BOUND_PER_QUAD[0]), ylim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[1], temp_env.UPPER_STATE_BOUND_PER_QUAD[1]), zlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[2], temp_env.UPPER_STATE_BOUND_PER_QUAD[2]), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z (m)')
+        subfig2 = figure.add_subplot(grid_spec[0,1], xlim = (np.min([np.min(instantaneous_reward_log[:,0]), 0]) - (np.max(instantaneous_reward_log[:,0]) - np.min(instantaneous_reward_log[:,0]))*0.02, np.max([np.max(instantaneous_reward_log[:,0]), 0]) + (np.max(instantaneous_reward_log[:,0]) - np.min(instantaneous_reward_log[:,0]))*0.02), ylim = (-0.5, 0.5))
         subfig3 = figure.add_subplot(grid_spec[0,2], xlim = (np.min(loss_log)-0.01, np.max(loss_log)+0.01), ylim = (-0.5, 0.5))
         subfig4 = figure.add_subplot(grid_spec[1,0], ylim = (0, 1.02))
         subfig5 = figure.add_subplot(grid_spec[1,1], ylim = (0, 1.02))
@@ -558,7 +528,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         subfig6.grid(True)
 
         # Setting appropriate axes ticks
-        subfig2.set_xticks([np.min(instantaneous_reward_log), 0, np.max(instantaneous_reward_log)] if np.sign(np.min(instantaneous_reward_log)) != np.sign(np.max(instantaneous_reward_log)) else [np.min(instantaneous_reward_log), np.max(instantaneous_reward_log)])
+        subfig2.set_xticks([np.min(instantaneous_reward_log[:,0]), 0, np.max(instantaneous_reward_log[:,0])] if np.sign(np.min(instantaneous_reward_log[:,0])) != np.sign(np.max(instantaneous_reward_log[:,0])) else [np.min(instantaneous_reward_log[:,0]), np.max(instantaneous_reward_log[:,0])])
         subfig3.set_xticks([np.min(loss_log), np.max(loss_log)])
         subfig4.set_xticks([bins[i*5] for i in range(round(len(bins)/5) + 1)])
         subfig4.tick_params(axis = 'x', labelrotation = -90)
@@ -571,20 +541,41 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         subfig6.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.])
 
     else:
-        subfig1 = figure.add_subplot(1, 1, 1, projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (-5, 5), ylim3d = (-5, 5), zlim3d = (0, 10), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z (m)')
+        subfig1 = figure.add_subplot(1, 1, 1, projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[0], temp_env.UPPER_STATE_BOUND_PER_QUAD[0]), ylim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[1], temp_env.UPPER_STATE_BOUND_PER_QUAD[1]), zlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[2], temp_env.UPPER_STATE_BOUND_PER_QUAD[2]), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z (m)')
     
     # Setting the proper view
     if temp_env.TOP_DOWN_VIEW:
-        subfig1.view_init(-90,0)
+        subfig1.view_init(90,180)
     else:
-        subfig1.view_init(25, 190)        
+        subfig1.view_init(25, 190)  
+    
+    # Defining the runway element coordinates
+    runway_elements = []
+    width_vertices = np.linspace(0, temp_env.RUNWAY_WIDTH, temp_env.RUNWAY_WIDTH_ELEMENTS + 1)
+    length_vertices = np.linspace(0, temp_env.RUNWAY_LENGTH, temp_env.RUNWAY_LENGTH_ELEMENTS + 1)
+    for i in range(temp_env.RUNWAY_LENGTH_ELEMENTS):
+        for j in range(temp_env.RUNWAY_WIDTH_ELEMENTS):
+            runway_element_vertices = np.array([[length_vertices[i],width_vertices[j]],
+                                                [length_vertices[i],width_vertices[j+1]],
+                                                [length_vertices[i+1],width_vertices[j+1]],
+                                                [length_vertices[i+1],width_vertices[j]],
+                                                [length_vertices[i],width_vertices[j]]])
+            runway_elements.append(runway_element_vertices)
+    full_runway = np.array([[length_vertices[0],width_vertices[0]],
+                            [length_vertices[0],width_vertices[-1]],
+                            [length_vertices[-1],width_vertices[-1]],
+                            [length_vertices[-1],width_vertices[0]],
+                            [length_vertices[0],width_vertices[0]]])
+    runway_plot, = subfig1.plot([], [], [], color = 'k', linestyle = '-', linewidth = 3)
+    runway_plot.set_data(full_runway[:,0], full_runway[:,1])
+    runway_plot.set_3d_properties(np.zeros(5)) 
 
     # Defining plotting objects that change each frame
-    chaser_body,       = subfig1.plot([], [], [], color = 'r', linestyle = '-', linewidth = 2) # Note, the comma is needed
-    chaser_front_face, = subfig1.plot([], [], [], color = 'k', linestyle = '-', linewidth = 2) # Note, the comma is needed
-    target_body,       = subfig1.plot([], [], [], color = 'g', linestyle = '-', linewidth = 2)
-    target_front_face, = subfig1.plot([], [], [], color = 'k', linestyle = '-', linewidth = 2)
-    chaser_body_dot    = subfig1.scatter(0., 0., 0., color = 'r', s = 0.1)
+    quad_bodies = []
+    all_colours = cm.rainbow(np.linspace(0,1,temp_env.NUMBER_OF_QUADS))
+    for i in range(temp_env.NUMBER_OF_QUADS):
+        this_quad_body, = subfig1.plot([], [], [], color = all_colours[i], linestyle = '-', linewidth = 2, zorder=10) # Note, the comma is needed
+        quad_bodies.append(this_quad_body)
 
     if extra_information:
         reward_bar           = subfig2.barh(y = 0, height = 0.2, width = 0)
@@ -603,37 +594,36 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Function called repeatedly to draw each frame
     def render_one_frame(frame, *fargs):
         temp_env = fargs[0] # Extract environment from passed args
-
-        # Draw the chaser body
-        chaser_body.set_data(chaser_body_inertial[frame,0,:], chaser_body_inertial[frame,1,:])
-        chaser_body.set_3d_properties(chaser_body_inertial[frame,2,:])
-
-        # Draw the front face of the chaser body in a different colour
-        chaser_front_face.set_data(chaser_front_face_inertial[frame,0,:], chaser_front_face_inertial[frame,1,:])
-        chaser_front_face.set_3d_properties(chaser_front_face_inertial[frame,2,:])
-
-        # Draw the target body
-        target_body.set_data(target_body_inertial[frame,0,:], target_body_inertial[frame,1,:])
-        target_body.set_3d_properties(target_body_inertial[frame,2,:])
-
-        # Draw the front face of the target body in a different colour
-        target_front_face.set_data(target_front_face_inertial[frame,0,:], target_front_face_inertial[frame,1,:])
-        target_front_face.set_3d_properties(target_front_face_inertial[frame,2,:])
-
-        # Drawing a dot in the centre of the chaser
-        chaser_body_dot._offsets3d = ([chaser_x[frame]],[chaser_y[frame]],[chaser_z[frame]])
-
+         
+        # Shade the runway, where appropriate
+        runway_state = states[frame,0,-temp_env.RUNWAY_STATE_SIZE:]
+        if frame > 0:
+            last_runway_state = states[frame-1,0,-temp_env.RUNWAY_STATE_SIZE:]
+        else:
+            last_runway_state = np.zeros(len(runway_state))
+            
+        for i in range(len(runway_state)):
+            # Only update the runway if it's changed
+            if runway_state[i] == 1 and last_runway_state[i] == 0:
+                these_vertices = [list(zip(runway_elements[i][:,0], runway_elements[i][:,1], np.zeros(5)))]
+                subfig1.add_collection3d(Poly3DCollection(these_vertices, color='grey', alpha = 0.5), zs = 0, zdir='z')
+        
+        # Draw the quads
+        for i in range(temp_env.NUMBER_OF_QUADS):
+            quad_bodies[i].set_data(quad_body_body_frame[:,0] + states[frame,i,0], quad_body_body_frame[:,1] + states[frame,i,1])
+            quad_bodies[i].set_3d_properties(quad_body_body_frame[:,2] + states[frame,i,2])
+            
         # Update the time text
         time_text.set_text('Time = %.1f s' %(frame*temp_env.TIMESTEP))
+        
+        # Update the reward text
+        reward_text.set_text('Quad 0 reward = %.1f' %cumulative_reward_log[frame,0])
 
-#       # Update the reward text
-        reward_text.set_text('Total reward = %.1f' %cumulative_reward_log[frame])
-#
         if extra_information:
             # Updating the instantaneous reward bar graph
-            reward_bar[0].set_width(instantaneous_reward_log[frame])
+            reward_bar[0].set_width(instantaneous_reward_log[frame,0])
             # And colouring it appropriately
-            if instantaneous_reward_log[frame] < 0:
+            if instantaneous_reward_log[frame,0] < 0:
                 reward_bar[0].set_color('r')
             else:
                 reward_bar[0].set_color('g')
@@ -654,7 +644,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
                 this_bar.set_height(new_value)
 #
         # Since blit = True, must return everything that has changed at this frame
-        return chaser_body_dot, time_text, chaser_body, chaser_front_face, target_body, target_front_face 
+        return time_text, quad_bodies 
 
     # Generate the animation!
     fargs = [temp_env] # bundling additional arguments

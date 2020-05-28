@@ -178,7 +178,7 @@ class Learner:
 
                 # Reshapping
                 gamma_log = np.reshape(gamma_log,  [-1, 1])
-#                print("Here", state_log.shape)
+                
                 # Get the online q-distribution
                 critic_distribution = self.sess.run(self.critic.q_distribution, feed_dict = {self.state_placeholder: state_log, self.action_placeholder: action_log}) # [episode length, number of bins]
 

@@ -372,7 +372,7 @@ class Agent:
                         observation_log.append(observations_0)
                         action_log.append(actions_0)
                         next_observation_log.append(next_observations)
-                        cumulative_reward_log.append(episode_rewards)
+                        cumulative_reward_log.append(list(episode_rewards))
                         instantaneous_reward_log.append(n_step_rewards)
                         done_log.append(done)
                         discount_factor_log.append(discount_factor)
@@ -399,26 +399,26 @@ class Agent:
                             discount_factor *= Settings.DISCOUNT_FACTOR # for the next step, gamma**(i+1)
 
                         # Dump data into large replay buffer
-                    # If the prioritized replay buffer is currently dumping data,
-                    # wait until that is done before adding more data to the buffer
-                    replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
-                    
-                    # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
-                    # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
-                    # data per episode than before! Log data only if it is not test time data
-                    if not test_time:                        
-                        for i in range(Settings.NUMBER_OF_QUADS):                        
-                            self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
-
-                    # If this episode is being rendered, log the state for rendering later
-                    if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                        observation_log.append(observations_0)
-                        action_log.append(actions_0)
-                        next_observation_log.append(next_observations)
-                        cumulative_reward_log.append(episode_rewards)
-                        instantaneous_reward_log.append(n_step_rewards)
-                        done_log.append(done)
-                        discount_factor_log.append(discount_factor)
+                        # If the prioritized replay buffer is currently dumping data,
+                        # wait until that is done before adding more data to the buffer
+                        replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
+                        
+                        # We are working with Settings.NUMBER_OF_QUADS agents exploring the environment together. 
+                        # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
+                        # data per episode than before! Log data only if it is not test time data
+                        if not test_time:                        
+                            for i in range(Settings.NUMBER_OF_QUADS):                        
+                                self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
+    
+                        # If this episode is being rendered, log the state for rendering later
+                        if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
+                            observation_log.append(observations_0)
+                            action_log.append(actions_0)
+                            next_observation_log.append(next_observations)
+                            cumulative_reward_log.append(list(episode_rewards))
+                            instantaneous_reward_log.append(n_step_rewards)
+                            done_log.append(done)
+                            discount_factor_log.append(discount_factor)
 
             ################################
             ####### Episode Complete #######
@@ -427,13 +427,12 @@ class Agent:
             if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                 print("Rendering Actor %i at episode %i" % (self.n_agent, episode_number))
 
-                os.makedirs(os.path.dirname(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/'), exist_ok=True)
-                print(np.asarray(raw_total_state_log).reshape([timestep_number, -1]).shape)
+                os.makedirs(os.path.dirname(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/'), exist_ok=True)                
                 np.savetxt(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/' + str(episode_number) + '.txt',np.asarray(raw_total_state_log).reshape([timestep_number, -1]))
 
                 # Ask the learner to tell us the value distributions of the state-action pairs encountered in this episode
-                print(np.asarray(observation_log))
-                self.agent_to_learner.put((np.asarray(observation_log), np.asarray(action_log), np.asarray(next_observation_log), np.asarray(instantaneous_reward_log), np.asarray(done_log), np.asarray(discount_factor_log)))
+                # Sending just the information about the first quad to get the value distributions
+                self.agent_to_learner.put((np.asarray(observation_log)[:,0,:], np.asarray(action_log)[:,0,:], np.asarray(next_observation_log)[:,0,:], np.asarray(instantaneous_reward_log)[:,0], np.asarray(done_log), np.asarray(discount_factor_log)))
 
                 # Wait for the results
                 try:
@@ -442,6 +441,7 @@ class Agent:
                     bins = np.linspace(Settings.MIN_V, Settings.MAX_V, Settings.NUMBER_OF_BINS)
 
                     # Render the episode
+                    #print(cumulative_reward_log, np.asarray(cumulative_reward_log))
                     environment_file.render(np.asarray(raw_total_state_log), np.asarray(action_log), np.asarray(instantaneous_reward_log), np.asarray(cumulative_reward_log), critic_distributions, target_critic_distributions, projected_target_distribution, bins, np.asarray(loss_log), episode_number, self.filename, Settings.MODEL_SAVE_DIRECTORY)
 
                 except queue.Empty:

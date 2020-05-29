@@ -16,9 +16,9 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'test_runway' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_runway'
-    AGENT                  = '_runway'
+    RUN_NAME               = 'sweep_velocity_delay_0_newNoise' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1'
+    AGENT                  = ''
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
@@ -33,7 +33,7 @@ class Settings:
     #############################
 
     # Hyperparameters
-    NUMBER_OF_ACTORS        = 1
+    NUMBER_OF_ACTORS        = 10
     NUMBER_OF_EPISODES      = 5e4 # that each agent will perform
     MAX_TRAINING_ITERATIONS = 1e6 # of neural networks
     ACTOR_LEARNING_RATE     = 0.0001
@@ -69,7 +69,7 @@ class Settings:
         NOISE_SCALE           = 1 # 1 is best for uniform -> noise scaled to the action range
     else:
         NOISE_SCALE           = 1/3 # standard deviation = 1/3 the action range. Therefore a 3-sigma action will cause full exploration in the worst case scenario
-    NOISE_SCALE_DECAY         = 0.999986137152479 # 0.999986137152479 for 50k half-life # 0.9999 for 7k half-life # 1 means the noise does not decay during training
+    NOISE_SCALE_DECAY         = 0.9999 # 0.999986137152479 for 50k half-life # 0.9999 for 7k half-life # 1 means the noise does not decay during training
 
 #%%
     ####################################

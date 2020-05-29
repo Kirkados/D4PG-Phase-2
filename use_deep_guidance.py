@@ -8,6 +8,7 @@ from os import path, getenv
 from math import radians
 from time import sleep
 import numpy as np
+import queue
 
 # Deep guidance stuff
 import tensorflow as tf
@@ -67,6 +68,15 @@ def main():
             sleep(0.2)
             last_target_yaw = 0.0
             last_chaser_yaw = 0.0
+            
+            if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                    
+                # Create state-augmentation queue (holds previous actions)
+                past_actions = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_ACTION_LENGTH)
+        
+                # Fill it with zeros to start
+                for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
+                    past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+                    
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
@@ -92,6 +102,15 @@ def main():
                         last_chaser_yaw = policy_input[3]
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     
+                # Augment state with past action data if applicable
+                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                        
+                    past_action_data = np.asarray(past_actions.queue).reshape([-1]) # past actions reshaped into a column
+                    
+                    # Remove the oldest entry from the action log queue
+                    past_actions.get(False)
+                    
+                    # Concatenate past actions to the policy input
+                    policy_input = np.concatenate([policy_input, past_action_data])
                 
                 ############################################################
                 ##### Received data! Process it and return the result! #####
@@ -114,6 +133,10 @@ def main():
                 deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:normalized_policy_input})[0]
                 # deep guidance = [chaser_x_velocity [north], chaser_y_velocity [west], chaser_z_velocity [up], chaser_angular_velocity [counter-clockwise looking down from above]]
         
+                # Adding the action taken to the past_action log
+                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
+                    past_actions.put(deep_guidance)
+                    
                 # Send velocity command to aircraft!
                 g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], yaw=-deep_guidance[3])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)

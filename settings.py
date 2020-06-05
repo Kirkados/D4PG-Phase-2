@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'sweep_velocity_delay_0_newNoise' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'sweep_velocity_delay_1_newNoise' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1'
     AGENT                  = ''
     RECORD_VIDEO           = True

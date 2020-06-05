@@ -16,8 +16,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'sweep_velocity_delay_1_newNoise' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1'
+    RUN_NAME               = 'more_acceleration_delay_3' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_accel'
     AGENT                  = ''
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
@@ -69,7 +69,7 @@ class Settings:
         NOISE_SCALE           = 1 # 1 is best for uniform -> noise scaled to the action range
     else:
         NOISE_SCALE           = 1/3 # standard deviation = 1/3 the action range. Therefore a 3-sigma action will cause full exploration in the worst case scenario
-    NOISE_SCALE_DECAY         = 0.9999 # 0.999986137152479 for 50k half-life # 0.9999 for 7k half-life # 1 means the noise does not decay during training
+    NOISE_SCALE_DECAY         =0.999986137152479 # 0.999986137152479 for 50k half-life # 0.9999 for 7k half-life # 1 means the noise does not decay during training
 
 #%%
     ####################################

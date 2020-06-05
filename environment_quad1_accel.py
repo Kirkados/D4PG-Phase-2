@@ -67,6 +67,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
+        self.NUMBER_OF_QUADS          = 1
         self.TOTAL_STATE_SIZE         = 12 # [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
                                            #  chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot]
         ### Note: TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
@@ -92,8 +93,8 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.

@@ -87,7 +87,6 @@ def main():
             # g.set_guided_mode()
             sleep(0.2)
             last_target_yaw = 0.0
-            last_chaser_yaw = 0.0  
             total_time = 0.0
             
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                    
@@ -125,10 +124,10 @@ def main():
                                     
                     #print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
                     if rc.id == target_id: # we've found the target
-                        policy_input[4] =  rc.X[0] # target X [north] =   North
-                        policy_input[5] = -rc.X[1] # targey Y [west]  = - East
-                        policy_input[6] =  rc.X[2] # target Z [up]    =   Up
-                        policy_input[7] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
+                        policy_input[3] =  rc.X[0] # target X [north] =   North
+                        policy_input[4] = -rc.X[1] # targey Y [west]  = - East
+                        policy_input[5] =  rc.X[2] # target Z [up]    =   Up
+                        policy_input[6] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
                         last_target_yaw = policy_input[7]
                         #print("Target position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f" %(rc.X[0], -rc.X[1], rc.X[2], -rc.W[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
@@ -136,13 +135,10 @@ def main():
                         policy_input[0] =  rc.X[0] # chaser X [north] =   North
                         policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
                         policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up                        
-                        policy_input[3] =  np.unwrap([last_chaser_yaw, -rc.W[2] - np.pi])[1] # chaser yaw  [counter-clockwise] = -yaw [clockwise]
-                        last_chaser_yaw = policy_input[3]
                         
-                        policy_input[8]  =  rc.V[0] # chaser V_x [north] =   North
-                        policy_input[9]  = -rc.V[1] # chaser V_y [west]  = - East
-                        policy_input[10] =  rc.V[2] # chaser V_z [up]    =   Up
-                        policy_input[11] =  0 # dummy entry on the chaser angular velocity because it is irrelevant and discarded
+                        policy_input[7] =  rc.V[0] # chaser V_x [north] =   North
+                        policy_input[8] = -rc.V[1] # chaser V_y [west]  = - East
+                        policy_input[9] =  rc.V[2] # chaser V_z [up]    =   Up
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
@@ -200,20 +196,20 @@ def main():
                     
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-                current_velocity = policy_input[8:11]
+                current_velocity = policy_input[7:]
                 deep_guidance[np.concatenate((np.array([False]), (np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[1:]) == np.sign(current_velocity))))] = 0 
                 
-                deep_guidance[1], dgn = signal.lfilter(b, a, [deep_guidance[1]] , zi=dgn)
-                deep_guidance[2], dge = signal.lfilter(b, a, [deep_guidance[2]] , zi=dge)
-                deep_guidance[3], dgd = signal.lfilter(b, a, [deep_guidance[3]] , zi=dgd)
+                deep_guidance[0], dgn = signal.lfilter(b, a, [deep_guidance[0]] , zi=dgn)
+                deep_guidance[1], dge = signal.lfilter(b, a, [deep_guidance[1]] , zi=dge)
+                deep_guidance[2], dgd = signal.lfilter(b, a, [deep_guidance[2]] , zi=dgd)
                 
                 # deep_guidance[2], deep_guidance_prev_filt[2] = signal.lfilter(b, a, deep_guidance[2], zi=deep_guidance_prev_filt[2])
                 # deep_guidance[3], deep_guidance_prev_filt[3] = signal.lfilter(b, a, deep_guidance[3], zi=deep_guidance_prev_filt[3])
                 # Send velocity/acceleration command to aircraft!
                 #g.move_at_ned_vel( yaw=-deep_guidance[0])
-                g.accelerate(north = deep_guidance[1], east = -deep_guidance[2], down = -deep_guidance[3])
+                g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 #print("Deep guidance command: a_x: %.2f; a_y: %.2f; a_z: %.2f" %( deep_guidance[1], deep_guidance[2], deep_guidance[3]))
-                print("Time: %.2f; X: %.2f; Vx: %.2f; Ax: %.2f" %(total_time, policy_input[0], policy_input[8], deep_guidance[1]))
+                print("Time: %.2f; X: %.2f; Vx: %.2f; Ax: %.2f" %(total_time, policy_input[0], policy_input[7], deep_guidance[0]))
                 print('Deep Guidance :',deep_guidance)
 
                 # print('Policy input shape :',normalized_policy_input.shape)
@@ -221,9 +217,9 @@ def main():
                 # Log all niput and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:5] = deep_guidance
+                log_placeholder[i,1:4] = deep_guidance
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,5:5+len(normalized_policy_input[0])] = normalized_policy_input
+                log_placeholder[i,4:4+len(normalized_policy_input[0])] = normalized_policy_input
                 i += 1
     
 

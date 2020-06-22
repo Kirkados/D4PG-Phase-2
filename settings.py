@@ -16,8 +16,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'more_acceleration_delay_3' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_accel'
+    RUN_NAME               = 'test_vel_no_heading' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1'
     AGENT                  = ''
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"

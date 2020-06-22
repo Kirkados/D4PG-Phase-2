@@ -16,8 +16,8 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'vel_no_heading_delay1' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1'
+    RUN_NAME               = 'test_runway' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_runway'
     AGENT                  = ''
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"

@@ -196,8 +196,8 @@ def main():
                     
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-                current_velocity = policy_input[7:]
-                deep_guidance[np.concatenate((np.array([False]), (np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[1:]) == np.sign(current_velocity))))] = 0 
+                current_velocity = policy_input[7:10]
+                deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[1:]) == np.sign(current_velocity))] = 0 
                 
                 deep_guidance[0], dgn = signal.lfilter(b, a, [deep_guidance[0]] , zi=dgn)
                 deep_guidance[1], dge = signal.lfilter(b, a, [deep_guidance[1]] , zi=dge)

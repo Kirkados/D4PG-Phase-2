@@ -67,7 +67,6 @@ def main():
             g.set_guided_mode()
             sleep(0.2)
             last_target_yaw = 0.0
-            last_chaser_yaw = 0.0
             
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                    
                 # Create state-augmentation queue (holds previous actions)

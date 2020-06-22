@@ -105,7 +105,7 @@ class Environment:
         # Test time properties
         self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time
         self.KINEMATIC_NOISE                  = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
-        self.KINEMATIC_NOISE_SD               = [0.02, 0.02, 0.02, np.pi/100] # The standard deviation of the noise that is to be applied to each element in the state
+        self.KINEMATIC_NOISE_SD               = [0.02, 0.02, 0.02] # The standard deviation of the noise that is to be applied to each element in the state
         self.FORCE_NOISE_AT_TEST_TIME         = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
@@ -147,7 +147,7 @@ class Environment:
         # This method resets the state and returns it
         """ NOTES:
                - if use_dynamics = True -> use dynamics
-               - if test_time = True -> do not add "controller noise" to the kinematics
+               - if test_time = True -> do not add "exploration noise" to the kinematics or actions
         """        
 
         # Logging whether it is test time for this episode
@@ -196,7 +196,7 @@ class Environment:
     #####################################
     def step(self, actions):
 
-        # Integrating forward one time step.
+        # Stepping the environment forward one time step.
         # Returns initial condition on first row then next TIMESTEP on the next row
         #########################################
         ##### PROPAGATE KINEMATICS/DYNAMICS #####
@@ -218,6 +218,7 @@ class Environment:
             # Saving the new state
             self.quad_positions  = next_states[1,:self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION)].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
             self.quad_velocities = next_states[1,self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION):].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
+            # Note: the controller is supposed to limit the quad velocity at test time
 
         else:
 

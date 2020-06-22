@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'test_vel_no_heading' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'vel_no_heading_delay1' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1'
     AGENT                  = ''
     RECORD_VIDEO           = True

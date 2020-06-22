@@ -128,7 +128,7 @@ def main():
                         policy_input[4] = -rc.X[1] # targey Y [west]  = - East
                         policy_input[5] =  rc.X[2] # target Z [up]    =   Up
                         policy_input[6] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
-                        last_target_yaw = policy_input[7]
+                        last_target_yaw = policy_input[6]
                         #print("Target position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f" %(rc.X[0], -rc.X[1], rc.X[2], -rc.W[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
                     if rc.id == follower_id: # we've found the chaser (follower)

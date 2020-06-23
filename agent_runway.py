@@ -317,6 +317,7 @@ class Agent:
 
                 # Add reward we just received to running total for this episode
                 episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]
+                cumulative_reward_log.append(list(episode_rewards))
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
@@ -371,8 +372,7 @@ class Agent:
                     if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                         observation_log.append(observations_0)
                         action_log.append(actions_0)
-                        next_observation_log.append(next_observations)
-                        cumulative_reward_log.append(list(episode_rewards))
+                        next_observation_log.append(next_observations)                        
                         instantaneous_reward_log.append(n_step_rewards)
                         done_log.append(done)
                         discount_factor_log.append(discount_factor)
@@ -415,7 +415,6 @@ class Agent:
                             observation_log.append(observations_0)
                             action_log.append(actions_0)
                             next_observation_log.append(next_observations)
-                            cumulative_reward_log.append(list(episode_rewards))
                             instantaneous_reward_log.append(n_step_rewards)
                             done_log.append(done)
                             discount_factor_log.append(discount_factor)
@@ -441,7 +440,6 @@ class Agent:
                     bins = np.linspace(Settings.MIN_V, Settings.MAX_V, Settings.NUMBER_OF_BINS)
 
                     # Render the episode
-                    #print(cumulative_reward_log, np.asarray(cumulative_reward_log))
                     environment_file.render(np.asarray(raw_total_state_log), np.asarray(action_log), np.asarray(instantaneous_reward_log), np.asarray(cumulative_reward_log), critic_distributions, target_critic_distributions, projected_target_distribution, bins, np.asarray(loss_log), episode_number, self.filename, Settings.MODEL_SAVE_DIRECTORY)
 
                 except queue.Empty:

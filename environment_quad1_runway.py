@@ -95,7 +95,7 @@ class Environment:
         self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 5.0]) # [m, m, m,]     
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
-        self.N_STEP_RETURN                    =   1
+        self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
@@ -469,6 +469,12 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     Animate a variable number of quadrotors inspecting a runway.
     - Plot 3D cube of any number of quads
     - Plot the runway and shade in elements as they become discovered (as listed in the state)
+    
+    Note: There is one timestep of lag between the state and the cumulative_reward_log 
+          because the first state is given at environment reset, but the first reward 
+          isn't given until the first timestep is taken. The training data, however,
+          are properly in sync. It's just the raw_state_log (used for animating)
+          that has one extra data point.          
     """
 
     # Load in a temporary environment, used to grab the physical parameters

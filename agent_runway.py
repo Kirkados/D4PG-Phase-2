@@ -243,6 +243,7 @@ class Agent:
                     done_log = []
                     discount_factor_log = []
                     raw_total_state_log.append(total_states)
+                    cumulative_reward_log.append(np.zeros(Settings.NUMBER_OF_QUADS)) # starting with 0 rewards (even if we are on a runway element initially)
 
             else:
                 # Regular training episode, use noise.

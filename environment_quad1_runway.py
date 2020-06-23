@@ -188,9 +188,6 @@ class Environment:
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
         self.previous_runway_value = 0
         
-        # Checking runway incase we are starting on a runway element
-        self.check_runway()
-        
         # Resetting the action delay queue        
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
@@ -470,11 +467,6 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     - Plot 3D cube of any number of quads
     - Plot the runway and shade in elements as they become discovered (as listed in the state)
     
-    Note: There is one timestep of lag between the state and the cumulative_reward_log 
-          because the first state is given at environment reset, but the first reward 
-          isn't given until the first timestep is taken. The training data, however,
-          are properly in sync. It's just the raw_state_log (used for animating)
-          that has one extra data point.          
     """
 
     # Load in a temporary environment, used to grab the physical parameters
@@ -608,7 +600,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Function called repeatedly to draw each frame
     def render_one_frame(frame, *fargs):
         temp_env = fargs[0] # Extract environment from passed args
-        print(frame)
+
         # Shade the runway, where appropriate
         runway_state = states[frame,0,-temp_env.RUNWAY_STATE_SIZE:]
         if frame > 0:
@@ -621,7 +613,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
             if runway_state[i] == 1 and last_runway_state[i] == 0:
                 these_vertices = [list(zip(runway_elements[i][:,0], runway_elements[i][:,1], np.zeros(5)))]
                 subfig1.add_collection3d(Poly3DCollection(these_vertices, color='grey', alpha = 0.5), zs = 0, zdir='z')
-                print("Runway element changed! Frame: %i, Previous reward: %f, Current reward: %f" %(frame, cumulative_reward_log[frame-2,0], cumulative_reward_log[frame-1,0]),cumulative_reward_log)
+                print("Runway element changed! Frame: %i, Previous reward: %f, Current reward: %f" %(frame, cumulative_reward_log[frame-1,0], cumulative_reward_log[frame,0]))
         
         # Draw the quads
         for i in range(temp_env.NUMBER_OF_QUADS):

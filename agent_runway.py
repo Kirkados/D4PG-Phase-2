@@ -316,8 +316,7 @@ class Agent:
                 next_raw_unaugmented_unnormalized_total_state = next_total_states
 
                 # Add reward we just received to running total for this episode
-                episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]
-                cumulative_reward_log.append(list(episode_rewards))
+                episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]                
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
@@ -332,6 +331,7 @@ class Agent:
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     if not done:
                         raw_total_state_log.append(next_total_states)
+                        cumulative_reward_log.append(list(episode_rewards))
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:

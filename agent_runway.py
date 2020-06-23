@@ -149,7 +149,7 @@ class Agent:
     def run(self, stop_run_flag, replay_buffer_dump_flag, starting_episode_number):
         # Runs the agent in its own environment
         # Runs for a specified number of episodes or until told to stop
-        print("Starting to run agent %i at episode %i." % (self.n_agent, starting_episode_number[self.n_agent -1]))
+        print("Starting to run agent %i at episode %i." % (self.n_agent, starting_episode_number[self.n_agent - 1]))
 
         # Initializing parameters for agent network
         self.sess.run(self.update_actor_parameters)
@@ -302,7 +302,7 @@ class Agent:
                 # Building NUMBER_OF_QUADS states
                 for i in range(Settings.NUMBER_OF_QUADS):
                     # Start state with your own 
-                    this_quads_next_state = np.concatenate([next_quad_positions[i,:], next_quad_velocities[i,:]])               
+                    this_quads_next_state = np.concatenate([next_quad_positions[i,:], next_quad_velocities[i,:]])
                     # Add in the others' states, starting with the next quad and finishing with the previous quad
                     for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
                         this_quads_next_state = np.concatenate([this_quads_next_state, next_quad_positions[j % Settings.NUMBER_OF_QUADS,:], next_quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
@@ -316,7 +316,7 @@ class Agent:
                 next_raw_unaugmented_unnormalized_total_state = next_total_states
 
                 # Add reward we just received to running total for this episode
-                episode_rewards += rewards
+                episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:

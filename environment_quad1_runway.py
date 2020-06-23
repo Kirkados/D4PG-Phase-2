@@ -60,6 +60,9 @@ import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
 
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.gridspec as gridspec
@@ -73,7 +76,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 12 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m]
@@ -92,7 +95,7 @@ class Environment:
         self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 5.0]) # [m, m, m,]     
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
-        self.N_STEP_RETURN                    =   5
+        self.N_STEP_RETURN                    =   1
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
@@ -100,7 +103,7 @@ class Environment:
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.MAX_NUMBER_OF_TIMESTEPS          = 50 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
-        self.TOP_DOWN_VIEW                    = False # Animation property
+        self.TOP_DOWN_VIEW                    = True # Animation property
 
         # Test time properties
         self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time
@@ -185,6 +188,9 @@ class Environment:
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
         self.previous_runway_value = 0
         
+        # Checking runway incase we are starting on a runway element
+        self.check_runway()
+        
         # Resetting the action delay queue        
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
@@ -262,6 +268,7 @@ class Environment:
         
         current_velocities = self.quad_velocities
         current_linear_acceleration = (current_velocities - self.previous_quad_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
         desired_linear_accelerations[(np.abs(current_velocities) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_accelerations) == np.sign(current_velocities))] = 0        
         
@@ -293,8 +300,8 @@ class Environment:
         each_runway_width_element  = self.RUNWAY_WIDTH/self.RUNWAY_WIDTH_ELEMENTS
         
         # Which zones is each quad in?
-        rows = np.floor(self.quad_positions[:,0]/each_runway_length_element).astype(int) # // divides and returns integers
-        columns = np.floor(self.quad_positions[:,1]//each_runway_width_element).astype(int) # // divides and returns integers
+        rows = np.floor(self.quad_positions[:,0]/each_runway_length_element).astype(int)
+        columns = np.floor(self.quad_positions[:,1]//each_runway_width_element).astype(int)
 
         # Which zones are actually over the runway?
         elements_to_keep = np.array((rows >= 0) & (rows < self.RUNWAY_LENGTH_ELEMENTS) & (self.quad_positions[:,2] >= self.MINIMUM_CAMERA_ALTITUDE) & (columns >= 0) & (columns < self.RUNWAY_WIDTH_ELEMENTS))
@@ -303,7 +310,7 @@ class Environment:
         rows = rows[elements_to_keep]
         columns = columns[elements_to_keep]
 
-        # Mrk the visited tiles as explored
+        # Mark the visited tiles as explored
         self.runway_state[rows,columns] = 1
         
 
@@ -595,7 +602,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     # Function called repeatedly to draw each frame
     def render_one_frame(frame, *fargs):
         temp_env = fargs[0] # Extract environment from passed args
-         
+        print(frame)
         # Shade the runway, where appropriate
         runway_state = states[frame,0,-temp_env.RUNWAY_STATE_SIZE:]
         if frame > 0:
@@ -608,6 +615,7 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
             if runway_state[i] == 1 and last_runway_state[i] == 0:
                 these_vertices = [list(zip(runway_elements[i][:,0], runway_elements[i][:,1], np.zeros(5)))]
                 subfig1.add_collection3d(Poly3DCollection(these_vertices, color='grey', alpha = 0.5), zs = 0, zdir='z')
+                print("Runway element changed! Frame: %i, Previous reward: %f, Current reward: %f" %(frame, cumulative_reward_log[frame-2,0], cumulative_reward_log[frame-1,0]),cumulative_reward_log)
         
         # Draw the quads
         for i in range(temp_env.NUMBER_OF_QUADS):

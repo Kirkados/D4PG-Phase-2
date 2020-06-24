@@ -298,7 +298,7 @@ class Agent:
                 self.agent_to_env.put((actions,))
 
                 # Receive results from stepped environment
-                next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get() # The * means the variable will be unpacked only if it exists
+                next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get()
             
                 # Building NUMBER_OF_QUADS states
                 for i in range(Settings.NUMBER_OF_QUADS):
@@ -330,9 +330,8 @@ class Agent:
                     #TODO:this
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                    if not done:
-                        raw_total_state_log.append(next_total_states)
-                        cumulative_reward_log.append(list(episode_rewards))
+                    raw_total_state_log.append(next_total_states.copy())
+                    cumulative_reward_log.append(list(episode_rewards))
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:
@@ -378,11 +377,6 @@ class Agent:
                         done_log.append(done)
                         discount_factor_log.append(discount_factor)
 
-                # End of timestep -> next state becomes current state
-                observations = next_observations
-                raw_unaugmented_unnormalized_total_state = next_raw_unaugmented_unnormalized_total_state
-                timestep_number += 1
-
                 # If this episode is done, drain the N-step buffer, calculate
                 # returns, and dump in replay buffer.
                 if done:
@@ -420,15 +414,20 @@ class Agent:
                             done_log.append(done)
                             discount_factor_log.append(discount_factor)
 
+                # End of timestep -> next state becomes current state
+                observations = next_observations
+                raw_unaugmented_unnormalized_total_state = next_raw_unaugmented_unnormalized_total_state
+                timestep_number += 1
+
             ################################
             ####### Episode Complete #######
             ################################
             # If this episode is being rendered, render it now.
             if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                 print("Rendering Actor %i at episode %i" % (self.n_agent, episode_number))
-
+                
                 os.makedirs(os.path.dirname(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/'), exist_ok=True)                
-                np.savetxt(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/' + str(episode_number) + '.txt',np.asarray(raw_total_state_log).reshape([timestep_number, -1]))
+                np.savetxt(Settings.MODEL_SAVE_DIRECTORY + self.filename + '/trajectories/' + str(episode_number) + '.txt',np.asarray(raw_total_state_log).reshape([timestep_number+1, -1]))
 
                 # Ask the learner to tell us the value distributions of the state-action pairs encountered in this episode
                 # Sending just the information about the first quad to get the value distributions

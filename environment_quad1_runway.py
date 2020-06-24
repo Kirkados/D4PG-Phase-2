@@ -70,13 +70,18 @@ import matplotlib.cm as cm
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection # to shade the runway in a 3D plot
 from mpl_toolkits.mplot3d import Axes3D
 
+"""
+Note: 
+    - Video record frequency is 2 (used to be 20)
+"""
+
 class Environment:
 
     def __init__(self):
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m]
@@ -93,16 +98,16 @@ class Environment:
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 0.0]) # [m, m, m]
         self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 5.0]) # [m, m, m,]     
-        self.MIN_V                            = -200.
-        self.MAX_V                            =  300.
+        self.MIN_V                            =  0.
+        self.MAX_V                            =  4.
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
-        self.MAX_NUMBER_OF_TIMESTEPS          = 50 # per episode
-        self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
+        self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
+        self.ADDITIONAL_VALUE_INFO            = True # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
 
         # Test time properties
@@ -626,7 +631,8 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         # Update the reward text
         reward_text.set_text('Quad 0 reward = %.1f' %cumulative_reward_log[frame,0])
 
-        if extra_information:
+        # If we want extra information AND we aren't on the last state (because the last state doesn't have value information)
+        if extra_information and (frame < len(states)-1):
             # Updating the instantaneous reward bar graph
             reward_bar[0].set_width(instantaneous_reward_log[frame,0])
             # And colouring it appropriately

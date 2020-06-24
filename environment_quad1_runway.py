@@ -107,7 +107,7 @@ class Environment:
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
-        self.ADDITIONAL_VALUE_INFO            = True # whether or not to include additional reward and value distribution information on the animations
+        self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
 
         # Test time properties

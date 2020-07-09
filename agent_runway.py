@@ -114,7 +114,7 @@ class Agent:
         
         # Fill it with zeros to start
         for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
-            self.past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+            self.past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
     
     def reset_state_augment_log(self):
         # Create state-augmentation queue (holds previous raw total states)
@@ -124,15 +124,20 @@ class Agent:
         for i in range(Settings.AUGMENT_STATE_WITH_STATE_LENGTH):
             self.past_states.put(np.zeros(Settings.TOTAL_STATE_SIZE), False)
             
-    def augment_state_with_actions(self, total_state):
+    def augment_states_with_actions(self, total_states):
+        # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
         # Just received a total_state from the environment, need to augment 
         # it with the past action data and return it
-        past_action_data = np.asarray(self.past_actions.queue).reshape([-1]) # past actions reshaped into a column
+        START HERE!!!
+        past_action_data = np.asarray(self.past_actions.queue).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into a column 
+        print([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE, Settings.AUGMENT_STATE_WITH_ACTION_LENGTH, past_action_data.shape, self.past_actions.queue])
+        
         augmented_state = np.concatenate([total_state, past_action_data])
         
         # Remove the oldest entry from the action log queue
         self.past_actions.get(False)
-        
+        print(augmented_state, self.past_actions.qsize)
+        raise SystemExit
         return augmented_state
     
     def augment_state_with_states(self, total_state):
@@ -206,7 +211,7 @@ class Agent:
                     this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
                 
                 # All quad data is included, now append the runway state and save it to the total_state
-                total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)])
+                total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
             
             # Saving the raw_total state for use in the optional state augmentation
             raw_unaugmented_unnormalized_total_state = total_states
@@ -275,7 +280,7 @@ class Agent:
 
                 # Adding the action taken to the past_actions log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    self.past_actions.put(actions)
+                    self.past_actions.put(actions) # [Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]
                     #TODO: this
 
                 ################################################

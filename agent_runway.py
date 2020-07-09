@@ -184,9 +184,6 @@ class Agent:
             # Reset the action_log, if applicable
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                 self.reset_action_augment_log()
-            
-            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                self.reset_state_augment_log()
 
             # Checking if this is a test time (when we run an agent in a
             # noise-free environment to see how the training is going).
@@ -218,11 +215,6 @@ class Agent:
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                 total_states = self.augment_state_with_actions(total_states)
                 #TODO: fix this
-                
-            # Augment total_state with past states, if appropriate
-            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                total_states = self.augment_state_with_states(total_states)   
-                #TODO: Fix this
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -285,11 +277,6 @@ class Agent:
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     self.past_actions.put(actions)
                     #TODO: this
-                
-                # Adding the old state taken to the past_states log
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    self.past_states.put(raw_unaugmented_unnormalized_total_state)
-                    # TODO: this
 
                 ################################################
                 #### Step the dynamics forward one timestep ####
@@ -322,11 +309,6 @@ class Agent:
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     next_total_states = self.augment_state_with_actions(next_total_states)
-                    #TODO:this
-                
-                # Augment total_state with past states, if appropriate
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    next_total_states = self.augment_state_with_states(next_total_states)
                     #TODO:this
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':

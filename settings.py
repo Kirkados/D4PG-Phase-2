@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'runway_properly_scaled' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'test_no_state_augmentation' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -112,9 +112,9 @@ class Settings:
     else:
         env = environment_file.Environment()
 
-    OBSERVATION_SIZE                 = env.OBSERVATION_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE + env.AUGMENT_STATE_WITH_STATE_LENGTH*env.OBSERVATION_SIZE # augmenting the state with past actions and states
-    UPPER_STATE_BOUND                = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH), np.tile(env.UPPER_STATE_BOUND, env.AUGMENT_STATE_WITH_STATE_LENGTH)])
-    LOWER_STATE_BOUND                = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH), np.tile(env.LOWER_STATE_BOUND, env.AUGMENT_STATE_WITH_STATE_LENGTH)])
+    OBSERVATION_SIZE                 = env.OBSERVATION_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE # augmenting the state with past actions and states
+    UPPER_STATE_BOUND                = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])
+    LOWER_STATE_BOUND                = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])
     ACTION_SIZE                      = env.ACTION_SIZE
     LOWER_ACTION_BOUND               = env.LOWER_ACTION_BOUND
     UPPER_ACTION_BOUND               = env.UPPER_ACTION_BOUND
@@ -130,14 +130,8 @@ class Settings:
     KINEMATIC_NOISE                  = env.KINEMATIC_NOISE
     TOTAL_STATE_SIZE                 = env.TOTAL_STATE_SIZE
     AUGMENT_STATE_WITH_ACTION_LENGTH = env.AUGMENT_STATE_WITH_ACTION_LENGTH
-    AUGMENT_STATE_WITH_STATE_LENGTH  = env.AUGMENT_STATE_WITH_STATE_LENGTH
     VELOCITY_LIMIT                   = env.VELOCITY_LIMIT
     NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
-    
-    # Appropriately adding to IRRELEVANT_STATES so appended states who are irrelevant are also ignored.
-    for i in range(env.AUGMENT_STATE_WITH_STATE_LENGTH):
-        for j in range(len(env.IRRELEVANT_STATES)):
-            IRRELEVANT_STATES.append(env.IRRELEVANT_STATES[j] + env.TOTAL_STATE_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE + i*env.TOTAL_STATE_SIZE)
             
     # Delete the test environment
     del env

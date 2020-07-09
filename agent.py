@@ -107,14 +107,6 @@ class Agent:
         # Fill it with zeros to start
         for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
             self.past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
-    
-    def reset_state_augment_log(self):
-        # Create state-augmentation queue (holds previous raw total states)
-        self.past_states = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_STATE_LENGTH)
-        
-        # Fill it with zeros to start
-        for i in range(Settings.AUGMENT_STATE_WITH_STATE_LENGTH):
-            self.past_states.put(np.zeros(Settings.TOTAL_STATE_SIZE), False)
             
     def augment_state_with_actions(self, total_state):
         # Just received a total_state from the environment, need to augment 
@@ -124,17 +116,6 @@ class Agent:
         
         # Remove the oldest entry from the action log queue
         self.past_actions.get(False)
-        
-        return augmented_state
-    
-    def augment_state_with_states(self, total_state):
-        # Just received a total_state from the environment, need to augment 
-        # it with the past state data and return it
-        past_state_data = np.asarray(self.past_states.queue).reshape([-1]) # past actions reshaped into a column
-        augmented_state = np.concatenate([total_state, past_state_data])
-        
-        # Remove the oldest entry from the state log queue
-        self.past_states.get(False)
         
         return augmented_state
 
@@ -172,9 +153,6 @@ class Agent:
             # Reset the action_log, if applicable
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                 self.reset_action_augment_log()
-            
-            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                self.reset_state_augment_log()
 
             # Checking if this is a test time (when we run an agent in a
             # noise-free environment to see how the training is going).
@@ -188,16 +166,9 @@ class Agent:
                 self.agent_to_env.put((False, test_time)) # Reset into a kinematics environment
             total_state = self.env_to_agent.get()
             
-            # Saving the raw_total state for use in the optional state augmentation
-            raw_total_state = total_state
-            
             # Augment total_state with past actions, if appropriate
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                 total_state = self.augment_state_with_actions(total_state)
-                
-            # Augment total_state with past states, if appropriate
-            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                total_state = self.augment_state_with_states(total_state)            
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -261,10 +232,6 @@ class Agent:
                 # Adding the action taken to the past_actions log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     self.past_actions.put(action)
-                
-                # Adding the old state taken to the past_states log
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    self.past_states.put(raw_total_state)
 
                 ################################################
                 #### Step the dynamics forward one timestep ####
@@ -274,9 +241,6 @@ class Agent:
 
                 # Receive results from stepped environment
                 next_total_state, reward, done, *guidance_position = self.env_to_agent.get() # The * means the variable will be unpacked only if it exists
-                
-                # Saving the next_total_state as next_raw_total_state before performing any operations to it 
-                next_raw_total_state = next_total_state
 
                 # Add reward we just received to running total for this episode
                 episode_reward += reward
@@ -284,10 +248,6 @@ class Agent:
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     next_total_state = self.augment_state_with_actions(next_total_state)
-                
-                # Augment total_state with past states, if appropriate
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    next_total_state = self.augment_state_with_states(next_total_state)
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     if not done:
@@ -335,7 +295,6 @@ class Agent:
 
                 # End of timestep -> next state becomes current state
                 observation = next_observation
-                raw_total_state = next_raw_total_state
                 timestep_number += 1
 
                 # If this episode is done, drain the N-step buffer, calculate

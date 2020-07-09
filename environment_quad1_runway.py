@@ -72,7 +72,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 """
 Note: 
-    - Video record frequency is 2 (used to be 20)
+    - 
 """
 
 class Environment:
@@ -81,25 +81,25 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m]
-        self.RUNWAY_LENGTH                    = 20 # [m]
-        self.RUNWAY_WIDTH_ELEMENTS            = 2 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 2 # [elements]
+        self.RUNWAY_LENGTH                    = 124 # [m]
+        self.RUNWAY_WIDTH_ELEMENTS            = 4 # [elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 8 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -3., -3., -3.]) # [m, m, m, m/s, m/s, m/s]
-        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  30.,  30.,  20.,  3.,  3.,  3.]) # [m, m, m, m/s, m/s, m/s]
+        self.LOWER_ACTION_BOUND               = np.array([-6.0, -6.0, -6.0]) # [m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 6.0,  6.0,  6.0]) # [m/s^2, m/s^2, m/s^2]
+        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
+        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_WIDTH + 10.,  self.RUNWAY_LENGTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.POSITION_RANDOMIZATION_AMOUNT    = np.array([10.0, 10.0, 0.0]) # [m, m, m]
-        self.INITIAL_QUAD_POSITION            = np.array([10.0, 10.0, 5.0]) # [m, m, m,]     
+        self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_WIDTH/2, self.RUNWAY_LENGTH/2, 0.0]) # [m, m, m]
+        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_WIDTH/2, self.RUNWAY_LENGTH/2, 5.0]) # [m, m, m]     
         self.MIN_V                            =  0.
-        self.MAX_V                            =  4.
+        self.MAX_V                            =  self.RUNWAY_LENGTH_ELEMENTS*self.RUNWAY_WIDTH_ELEMENTS
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
@@ -129,7 +129,7 @@ class Environment:
         self.COLLISION_PENALTY                = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.VELOCITY_LIMIT                   = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
+        self.VELOCITY_LIMIT                   = 10 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
         self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
         self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
         
@@ -167,7 +167,7 @@ class Environment:
         if self.RANDOMIZE:
             # Randomizing initial state
             for i in range(self.NUMBER_OF_QUADS):
-                self.quad_positions[i] = self.INITIAL_QUAD_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_AMOUNT))*self.POSITION_RANDOMIZATION_AMOUNT
+                self.quad_positions[i] = self.INITIAL_QUAD_POSITION + np.random.randn(len(self.POSITION_RANDOMIZATION_SD))*self.POSITION_RANDOMIZATION_SD
 
         else:
             # Constant initial state

@@ -84,8 +84,8 @@ class Environment:
         self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
-        self.RUNWAY_WIDTH                     = 12.5 # [m]
-        self.RUNWAY_LENGTH                    = 124 # [m]
+        self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
+        self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # [elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
@@ -93,11 +93,11 @@ class Environment:
         self.LOWER_ACTION_BOUND               = np.array([-6.0, -6.0, -6.0]) # [m/s^2, m/s^2, m/s^2]
         self.UPPER_ACTION_BOUND               = np.array([ 6.0,  6.0,  6.0]) # [m/s^2, m/s^2, m/s^2]
         self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
-        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_WIDTH + 10.,  self.RUNWAY_LENGTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
+        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_WIDTH/2, self.RUNWAY_LENGTH/2, 0.0]) # [m, m, m]
-        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_WIDTH/2, self.RUNWAY_LENGTH/2, 5.0]) # [m, m, m]     
+        self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 0.0]) # [m, m, m]
+        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 5.0]) # [m, m, m]     
         self.MIN_V                            =  0.
         self.MAX_V                            =  self.RUNWAY_LENGTH_ELEMENTS*self.RUNWAY_WIDTH_ELEMENTS
         self.N_STEP_RETURN                    =   5
@@ -552,7 +552,24 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         subfig6.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.])
 
     else:
-        subfig1 = figure.add_subplot(1, 1, 1, projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[0], temp_env.UPPER_STATE_BOUND_PER_QUAD[0]), ylim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[1], temp_env.UPPER_STATE_BOUND_PER_QUAD[1]), zlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[2], temp_env.UPPER_STATE_BOUND_PER_QUAD[2]), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z (m)')
+        subfig1 = figure.add_subplot(1, 1, 1, projection = '3d', aspect = 'equal', autoscale_on = False, xlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[0], temp_env.UPPER_STATE_BOUND_PER_QUAD[0]), ylim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[1], temp_env.UPPER_STATE_BOUND_PER_QUAD[1]), zlim3d = (temp_env.LOWER_STATE_BOUND_PER_QUAD[2], temp_env.UPPER_STATE_BOUND_PER_QUAD[2]), xlabel = 'X (m)', ylabel = 'Y (m)', zlabel = 'Z')
+        
+    # Since matplotlib doesn't have 'aspect = 'equal'' implemented, I have to manually
+    # do it. I adjust the limits so that they're the same length in all directions,
+    # centred at the right location.
+    x_limits = subfig1.get_xlim3d()
+    y_limits = subfig1.get_ylim3d()
+    z_limits = subfig1.get_zlim3d()
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+    subfig1.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    subfig1.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    subfig1.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])        
     
     # Setting the proper view
     if temp_env.TOP_DOWN_VIEW:

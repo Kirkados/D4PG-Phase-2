@@ -75,14 +75,6 @@ def main():
                 # Fill it with zeros to start
                 for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
                     past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
-            
-            if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0: 
-                # Create state-augmentation queue (holds previous raw total states)
-                past_states = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_STATE_LENGTH)
-                
-                # Fill it with zeros to start
-                for i in range(Settings.AUGMENT_STATE_WITH_STATE_LENGTH):
-                    past_states.put(np.zeros(Settings.TOTAL_STATE_SIZE), False)
                 
             while True:
                 # TODO: make better frequency managing
@@ -134,20 +126,6 @@ def main():
                     
                     # Concatenate past actions to the policy input
                     policy_input = np.concatenate([policy_input, past_action_data])
-                    
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    past_state_data = np.asarray(past_states.queue).reshape([-1]) # past actions reshaped into a column
-                    
-                    # Remove the oldest entry from the state log queue
-                    past_states.get(False)
-                    
-                    # Add current policy input to past_states so they'll be included in the augmented state next timestep
-                    past_states.put(raw_policy_input, False)
-                    
-                    # Concatenate past states to the policy input
-                    policy_input = np.concatenate([policy_input, past_state_data])
-                    
-                    
                     
                 ############################################################
                 ##### Received data! Process it and return the result! #####

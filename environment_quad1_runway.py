@@ -90,8 +90,8 @@ class Environment:
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # [elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-6.0, -6.0, -6.0]) # [m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 6.0,  6.0,  6.0]) # [m/s^2, m/s^2, m/s^2]
+        self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
         self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
         self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients

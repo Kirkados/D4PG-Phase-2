@@ -108,6 +108,7 @@ class Environment:
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
+        self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
 
         # Test time properties
         self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time
@@ -685,22 +686,29 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     fargs = additional arguments for render_one_frame
     interval = delay between frames in ms
     """
-
     # Save the animation!
-    try:
+    if temp_env.SKIP_FAILED_ANIMATIONS:
+        try:
+            # Save it to the working directory [have to], then move it to the proper folder
+            animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
+            # Make directory if it doesn't already exist
+            os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
+            # Move animation to the proper directory
+            os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
+        except:
+            print("Skipping animation for episode %i due to an error" %episode_number)
+            # Try to delete the partially completed video file
+            try:
+                os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
+            except:
+                pass
+    else:
         # Save it to the working directory [have to], then move it to the proper folder
         animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
         # Make directory if it doesn't already exist
         os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
         # Move animation to the proper directory
         os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
-    except:
-        print("Skipping animation for episode %i due to an error" %episode_number)
-        # Try to delete the partially completed video file
-        try:
-            os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
-        except:
-            pass
 
     del temp_env
     plt.close(figure)

@@ -109,6 +109,7 @@ class Environment:
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
+        self.SKIP_FAILED_ANIMATIONS           = False # Error the program or skip when animations fail?
         
         # Obstacle properties
         self.USE_OBSTACLE              = False # Also change self.IRRELEVANT_STATES
@@ -116,12 +117,14 @@ class Environment:
         self.OBSTABLE_DISTANCE         = 0.2 # [m] radius of which the obstacle penalty will be applied
         self.OBSTACLE_INITIAL_POSITION = np.array([1.2, 1.2, 1.2]) # [m]
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
-
+		
+""" Note: Kinematic noise is ON """
         # Test time properties
-        self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
-        self.KINEMATIC_NOISE          = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
-        self.KINEMATIC_NOISE_SD       = [0.02, 0.02, 0.02] # The standard deviation of the noise that is to be applied to each element in the state
-        self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
+        self.TEST_ON_DYNAMICS            = True # Whether or not to use full dynamics along with a PD controller at test time
+        self.KINEMATIC_NOISE             = True # Whether or not to apply noise to the kinematics in order to simulate a poor controller
+        self.KINEMATIC_POSITION_NOISE_SD = [0.05, 0.05, 0.05] # The standard deviation of the noise that is to be applied to each position element in the state
+        self.KINEMATIC_VELOCITY_NOISE_SD = [0.05, 0.05, 0.05] # The standard deviation of the noise that is to be applied to each velocity element in the state
+        self.FORCE_NOISE_AT_TEST_TIME    = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
         self.KP                       = 0.5 # Proportional-velocity controller gain for attitude controller
@@ -252,13 +255,16 @@ class Environment:
 
             # Saving the new state
             self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
-            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
-            self.chaser_velocity[:-1] = np.clip(self.chaser_velocity[:-1], -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity            
 
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
                  # Add some noise to the position part of the state
-                 self.chaser_position += np.random.randn(len(self.chaser_position)) * self.KINEMATIC_NOISE_SD
+                 self.chaser_position += np.random.randn(len(self.chaser_position)) * self.KINEMATIC_POSITION_NOISE_SD
+                 self.chaser_velocity += np.random.randn(len(self.chaser_velocity)) * self.KINEMATIC_VELOCITY_NOISE_SD
+            
+            # Ensuring the velocity is within the bounds
+            self.chaser_velocity = np.clip(self.chaser_velocity, -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
 
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
@@ -731,20 +737,28 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     """
 
     # Save the animation!
-    try:
+    if temp_env.SKIP_FAILED_ANIMATIONS:
+        try:
+            # Save it to the working directory [have to], then move it to the proper folder
+            animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
+            # Make directory if it doesn't already exist
+            os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
+            # Move animation to the proper directory
+            os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
+        except:
+            print("Skipping animation for episode %i due to an error" %episode_number)
+            # Try to delete the partially completed video file
+            try:
+                os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
+            except:
+                pass
+    else:
         # Save it to the working directory [have to], then move it to the proper folder
         animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
         # Make directory if it doesn't already exist
         os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
         # Move animation to the proper directory
         os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
-    except:
-        print("Skipping animation for episode %i due to an error" %episode_number)
-        # Try to delete the partially completed video file
-        try:
-            os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
-        except:
-            pass
 
     del temp_env
     plt.close(figure)

@@ -114,42 +114,22 @@ class Agent:
         
         # Fill it with zeros to start
         for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
-            self.past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
-    
-    def reset_state_augment_log(self):
-        # Create state-augmentation queue (holds previous raw total states)
-        self.past_states = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_STATE_LENGTH)
-        
-        # Fill it with zeros to start
-        for i in range(Settings.AUGMENT_STATE_WITH_STATE_LENGTH):
-            self.past_states.put(np.zeros(Settings.TOTAL_STATE_SIZE), False)
+            self.past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]) + np.random.randint(0,20,[Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
             
     def augment_states_with_actions(self, total_states):
         # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
         # Just received a total_state from the environment, need to augment 
         # it with the past action data and return it
-        START HERE!!!
-        past_action_data = np.asarray(self.past_actions.queue).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into a column 
-        print([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE, Settings.AUGMENT_STATE_WITH_ACTION_LENGTH, past_action_data.shape, self.past_actions.queue])
-        
-        augmented_state = np.concatenate([total_state, past_action_data])
-        
+        # The past_action_data is of shape [Settings.AUGMENT_STATE_WITH_ACTION_LENGTH, Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+        # I swap the first and second axes so that I can reshape it properly
+
+        past_action_data = np.swapaxes(np.asarray(self.past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad     
+        augmented_states = np.concatenate([total_states, past_action_data], axis = 1)
+
         # Remove the oldest entry from the action log queue
         self.past_actions.get(False)
-        print(augmented_state, self.past_actions.qsize)
-        raise SystemExit
-        return augmented_state
-    
-    def augment_state_with_states(self, total_state):
-        # Just received a total_state from the environment, need to augment 
-        # it with the past state data and return it
-        past_state_data = np.asarray(self.past_states.queue).reshape([-1]) # past actions reshaped into a column
-        augmented_state = np.concatenate([total_state, past_state_data])
-        
-        # Remove the oldest entry from the state log queue
-        self.past_states.get(False)
-        
-        return augmented_state
+
+        return augmented_states
 
     def run(self, stop_run_flag, replay_buffer_dump_flag, starting_episode_number):
         # Runs the agent in its own environment
@@ -213,13 +193,9 @@ class Agent:
                 # All quad data is included, now append the runway state and save it to the total_state
                 total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
             
-            # Saving the raw_total state for use in the optional state augmentation
-            raw_unaugmented_unnormalized_total_state = total_states
-            
             # Augment total_state with past actions, if appropriate
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                total_states = self.augment_state_with_actions(total_states)
-                #TODO: fix this
+                total_states = self.augment_states_with_actions(total_states) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -280,8 +256,9 @@ class Agent:
 
                 # Adding the action taken to the past_actions log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
+                    print(self.past_actions.queue)
                     self.past_actions.put(actions) # [Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]
-                    #TODO: this
+                    print(self.past_actions.queue)
 
                 ################################################
                 #### Step the dynamics forward one timestep ####
@@ -301,20 +278,14 @@ class Agent:
                         this_quads_next_state = np.concatenate([this_quads_next_state, next_quad_positions[j % Settings.NUMBER_OF_QUADS,:], next_quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
                     
                     # All quad data is included, now append the runway state and save it to the total_state
-                    next_total_states[i,:] = np.concatenate([this_quads_next_state, next_runway_state.reshape(-1)])
-                
-                
-                
-                # Saving the next_total_state as next_raw_unaugmented_unnormalized_total_state before performing any operations to it 
-                next_raw_unaugmented_unnormalized_total_state = next_total_states
+                    next_total_states[i,:] = np.concatenate([this_quads_next_state, next_runway_state.reshape(-1)])        
 
                 # Add reward we just received to running total for this episode
                 episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]                
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    next_total_states = self.augment_state_with_actions(next_total_states)
-                    #TODO:this
+                    next_total_states = self.augment_states_with_actions(next_total_states)
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     raw_total_state_log.append(next_total_states.copy())
@@ -403,7 +374,6 @@ class Agent:
 
                 # End of timestep -> next state becomes current state
                 observations = next_observations
-                raw_unaugmented_unnormalized_total_state = next_raw_unaugmented_unnormalized_total_state
                 timestep_number += 1
 
             ################################

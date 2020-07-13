@@ -55,6 +55,7 @@ import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
+import faulthandler # Added July 11 2020 to debug "segmentation faule (core dumped)" error
 
 import matplotlib
 matplotlib.use('Agg')
@@ -118,12 +119,12 @@ class Environment:
         self.OBSTACLE_INITIAL_POSITION = np.array([1.2, 1.2, 1.2]) # [m]
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
 		
-""" Note: Kinematic noise is ON """
+        """ Note: Kinematic noise is ON """
         # Test time properties
         self.TEST_ON_DYNAMICS            = True # Whether or not to use full dynamics along with a PD controller at test time
         self.KINEMATIC_NOISE             = True # Whether or not to apply noise to the kinematics in order to simulate a poor controller
-        self.KINEMATIC_POSITION_NOISE_SD = [0.05, 0.05, 0.05] # The standard deviation of the noise that is to be applied to each position element in the state
-        self.KINEMATIC_VELOCITY_NOISE_SD = [0.05, 0.05, 0.05] # The standard deviation of the noise that is to be applied to each velocity element in the state
+        self.KINEMATIC_POSITION_NOISE_SD = [0.2, 0.2, 0.2] # The standard deviation of the noise that is to be applied to each position element in the state
+        self.KINEMATIC_VELOCITY_NOISE_SD = [0.1, 0.1, 0.1] # The standard deviation of the noise that is to be applied to each velocity element in the state
         self.FORCE_NOISE_AT_TEST_TIME    = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
@@ -514,6 +515,8 @@ def dynamics_equations_of_motion(state, t, parameters):
 ##########################################
 def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, guidance_position_log, episode_number, filename, save_directory):
 
+    faulthandler.enable() # to get more information about segmentation fault (core dumped) error 
+    
     # Load in a temporary environment, used to grab the physical parameters
     temp_env = Environment()
 

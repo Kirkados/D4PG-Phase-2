@@ -86,8 +86,8 @@ class Environment:
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
         self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
-        self.RUNWAY_WIDTH_ELEMENTS            = 4 # [elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 8 # [elements]
+        self.RUNWAY_WIDTH_ELEMENTS            = 2 # 4[elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 2 # 8[elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
@@ -97,14 +97,14 @@ class Environment:
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 0.0]) # [m, m, m]
-        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 5.0]) # [m, m, m]     
+        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 5.0]) # [m, m, m]         
         self.MIN_V                            =  0.
         self.MAX_V                            =  self.RUNWAY_LENGTH_ELEMENTS*self.RUNWAY_WIDTH_ELEMENTS
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
@@ -215,7 +215,7 @@ class Environment:
             ############################
 
             # Next, calculate the control effort
-            control_efforts = self.controller(actions)
+            control_efforts = self.controller(actions)    
 
             # Anything additional that needs to be sent to the dynamics integrator
             dynamics_parameters = [control_efforts, self.MASS, self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)]
@@ -227,7 +227,7 @@ class Environment:
             self.quad_positions  = next_states[1,:self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION)].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
             self.quad_velocities = next_states[1,self.NUMBER_OF_QUADS*len(self.INITIAL_QUAD_POSITION):].reshape([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
             # Note: the controller is supposed to limit the quad velocity at test time
-
+            
         else:
 
             # Additional parameters to be passed to the kinematics
@@ -269,23 +269,23 @@ class Environment:
         desired_linear_accelerations = actions
         
         current_velocities = self.quad_velocities
-        current_linear_acceleration = (current_velocities - self.previous_quad_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        current_linear_accelerations = (current_velocities - self.previous_quad_velocities)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
         
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
         desired_linear_accelerations[(np.abs(current_velocities) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_accelerations) == np.sign(current_velocities))] = 0        
         
         # Calculating acceleration error
-        linear_acceleration_error = desired_linear_accelerations - current_linear_acceleration
+        linear_acceleration_error = desired_linear_accelerations - current_linear_accelerations
         
         # Integral-acceleration control
         linear_control_effort = self.previous_linear_control_efforts + self.KI * linear_acceleration_error
         
         # Saving the current velocity for the next timetsep
-        self.previous_velocities = current_velocities
+        self.previous_quad_velocities = current_velocities
         
         # Saving the current control effort for the next timestep
         self.previous_linear_control_efforts = linear_control_effort
-
+        
         return linear_control_effort
 
     def check_runway(self):
@@ -418,7 +418,7 @@ def kinematics_equations_of_motion(state, t, parameters):
     # state = quad_positions, quad_velocities concatenated
     #quad_positions  = state[:NUMBER_OF_QUADS*QUAD_POSITION_LENGTH]
     quad_velocities = state[NUMBER_OF_QUADS*QUAD_POSITION_LENGTH:]
-
+    
     # Flattening the accelerations into a column
     accelerations = actions.reshape(-1) # [x_dot_dot, y_dot_dot, z_dot_dot, x_dot_dot, y_dot_dot....]
 

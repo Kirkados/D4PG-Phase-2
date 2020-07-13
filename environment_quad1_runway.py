@@ -86,8 +86,8 @@ class Environment:
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
         self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
         self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
-        self.RUNWAY_WIDTH_ELEMENTS            = 2 # 4[elements]
-        self.RUNWAY_LENGTH_ELEMENTS           = 2 # 8[elements]
+        self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
+        self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
@@ -104,7 +104,7 @@ class Environment:
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
@@ -132,6 +132,8 @@ class Environment:
         self.VELOCITY_LIMIT                   = 10 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
         self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
         self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+        self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
+        self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
         
         
         # Performing some calculations  
@@ -314,7 +316,25 @@ class Environment:
 
         # Mark the visited tiles as explored
         self.runway_state[rows,columns] = 1
+    
+    def check_quad_distances(self):
+        # Checks the scalar distance from each quad to its neighbours in X and Y ONLY (altitude is ignored)
+        # If there are more than 2 quads, the distance of the nearest one is returned
         
+        # Initializing the distances (to large numbers incase there is only one quad)
+        minimum_distances = np.ones(self.NUMBER_OF_QUADS)*1000.0
+        
+        # For this quad
+        for i in range(self.NUMBER_OF_QUADS):         
+            # Check all the other quads
+            for j in range(i + 1, self.NUMBER_OF_QUADS + i):
+                this_distance = np.linalg.norm([self.quad_positions[i,0] - self.quad_positions[j % self.NUMBER_OF_QUADS,0], self.quad_positions[i,1] - self.quad_positions[j % self.NUMBER_OF_QUADS,1]])
+
+                # Replace the minimum distance with this if it's smaller
+                if this_distance < minimum_distances[i]:
+                    minimum_distances[i] = this_distance
+
+        return minimum_distances
 
     def reward_function(self, action):
         # Returns the reward for this TIMESTEP as a function of the state and action
@@ -330,6 +350,9 @@ class Environment:
 
         # Penalizing acceleration commands (to encourage fuel efficiency)
         rewards -= np.sum(self.ACCELERATION_PENALTY*np.abs(action), axis = 1)
+
+        # Penalizing quadrotor proximity (to discourage grouping)
+        rewards -= -self.PROXIMITY_PENALTY_MAXIMUM*np.exp(-self.check_quad_distances()/self.PROXIMITY_PENALTY_FACTOR)
 
         return rewards
 

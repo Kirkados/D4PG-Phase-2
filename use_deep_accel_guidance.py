@@ -113,9 +113,6 @@ def main():
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
-                        
-                # Save raw policy input incase we want to augment state with it
-                raw_policy_input = policy_input
                     
                 # Augment state with past action data if applicable
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                        

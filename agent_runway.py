@@ -114,7 +114,7 @@ class Agent:
         
         # Fill it with zeros to start
         for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
-            self.past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]) + np.random.randint(0,20,[Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
+            self.past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
             
     def augment_states_with_actions(self, total_states):
         # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]

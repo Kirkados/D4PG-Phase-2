@@ -80,7 +80,7 @@ def main():
                 # TODO: make better frequency managing
                 sleep(g.step)
                 # print('G IDS : ',g.ids) # debug....
-                policy_input = np.zeros(7) # initializing policy input
+                policy_input = np.zeros(Settings.TOTAL_STATE_SIZE) # initializing policy input
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
                     # print('rc.id',rc.id)

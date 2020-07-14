@@ -80,11 +80,11 @@ def main():
                 # TODO: make better frequency managing
                 sleep(g.step)
                 # print('G IDS : ',g.ids) # debug....
-                policy_input = np.zeros(8) # initializing policy input
+                policy_input = np.zeros(7) # initializing policy input
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
                     # print('rc.id',rc.id)
-                    print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
+                    #print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
                     if rc.id == target_id: # we've found the target
                         policy_input[3] =  rc.X[0] # target X [north] =   North
                         policy_input[4] = -rc.X[1] # targey Y [west]  = - East

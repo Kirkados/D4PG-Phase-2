@@ -352,7 +352,7 @@ class Environment:
         rewards -= np.sum(self.ACCELERATION_PENALTY*np.abs(action), axis = 1)
 
         # Penalizing quadrotor proximity (to discourage grouping)
-        rewards -= -self.PROXIMITY_PENALTY_MAXIMUM*np.exp(-self.check_quad_distances()/self.PROXIMITY_PENALTY_FACTOR)
+        rewards -= self.PROXIMITY_PENALTY_MAXIMUM*np.exp(-self.check_quad_distances()/self.PROXIMITY_PENALTY_FACTOR)
 
         return rewards
 

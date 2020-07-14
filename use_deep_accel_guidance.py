@@ -68,6 +68,8 @@ def main():
             last_target_yaw = 0.0
             total_time = 0.0
             
+            last_deep_guidance = np.zeros(Settings.ACTION_SIZE)
+            
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                    
                 # Create state-augmentation queue (holds previous actions)
                 past_actions = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_ACTION_LENGTH)
@@ -86,10 +88,8 @@ def main():
                     rc.timeout = rc.timeout + g.step
                     
                     
-                    """ policy_input is: [chaser_x, chaser_y, chaser_z, chaser_theta, target_x, target_y, target_z, target_theta, 
-                                          chaser_x_dot, chaser_y_dot, chaser_z_dot, chaser_theta_dot + (optional past action data)] 
-                    
-                    Note: chaser_theta_dot can be returned as a zero (it is discarded before being run through the network)
+                    """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
+                                          chaser_x_dot, chaser_y_dot, chaser_z_dot, (optional past action data)] 
                     """
                     
                                     
@@ -110,6 +110,7 @@ def main():
                         policy_input[7] =  rc.V[0] # chaser V_x [north] =   North
                         policy_input[8] = -rc.V[1] # chaser V_y [west]  = - East
                         policy_input[9] =  rc.V[2] # chaser V_z [up]    =   Up
+                        print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f" %(rc.X[0], -rc.X[1], rc.X[2], rc.V[0], -rc.V[1], rc.V[2]))
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
@@ -153,11 +154,13 @@ def main():
                 current_velocity = policy_input[7:10]                
                 deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(current_velocity))] = 0 
         
+                average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
+                last_deep_guidance = deep_guidance
+                
                 # Send velocity/acceleration command to aircraft!
-                #g.move_at_ned_vel( yaw=-deep_guidance[0])
-                g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
-                #print("Deep guidance command: a_x: %.2f; a_y: %.2f; a_z: %.2f" %( deep_guidance[1], deep_guidance[2], deep_guidance[3]))
-                print("Time: %.2f; X: %.2f; Vx: %.2f; Ax: %.2f" %(total_time, policy_input[0], policy_input[7], deep_guidance[0]))
+                #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
+                g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2])
+                #g.accelerate(north = 1, east = 0.1, down = 0)
     
 
 

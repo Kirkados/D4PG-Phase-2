@@ -83,8 +83,8 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
         self.ACTION_SIZE                      = 3 # [x_dot_dot, y_dot_dot, z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0])/10 # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0])/10 # [rad/s, m/s^2, m/s^2, m/s^2]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
@@ -104,7 +104,7 @@ class Environment:
         self.END_ON_FALL                      = False # end episode on a fall off the table
         self.GOAL_REWARD                      =   0.
         self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode
+        self.MAX_NUMBER_OF_TIMESTEPS          = 200 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state

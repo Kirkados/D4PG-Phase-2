@@ -26,11 +26,16 @@ def main():
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
+    parser.add_argument("-f", "--filename", dest='log_filename', default='log_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None
     target_id = args.target_id
     follower_id = args.follower_id
+    log_filename = args.log_filename
+    max_duration = 100000
+    log_placeholder = np.zeros((max_duration, 30))
+    i=0 # for log increment
     
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
@@ -62,6 +67,7 @@ def main():
     ### End deep guidance initialization stuff
 
         try:
+            start_time = time.time()
             g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
             sleep(0.1)
             g.set_guided_mode()
@@ -137,6 +143,15 @@ def main():
                 # Send velocity command to aircraft!
                 g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
+                
+                # Log all input and outputs:
+                t = time.time()-start_time
+                log_placeholder[i,0] = t
+                log_placeholder[i,1:4] = deep_guidance
+                log_placeholder[i,4:7] = deep_guidance
+                # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
+                log_placeholder[i,7:7+len(normalized_policy_input[0])] = policy_input
+                i += 1
     
 
 
@@ -145,6 +160,8 @@ def main():
             g.set_nav_mode()
             g.shutdown()
             sleep(0.2)
+            with open(log_filename+".txt", 'wb') as f:
+                np.save(f, log_placeholder[:i])
             exit()
 
 

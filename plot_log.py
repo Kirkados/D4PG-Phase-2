@@ -7,9 +7,9 @@ def plot_data(data):
     fig = plt.figure(figsize=(15,7))
     t = data[:,0]
     plt.subplot(311)
-    plt.plot(t,data[:,1], alpha=0.7, label='Deep Guidance Heading')
-    plt.plot(t,data[:,2], alpha=0.7, label='Deep Guidance X')
-    plt.plot(t,data[:,3], alpha=0.7, label='Y')
+    plt.plot(t,data[:,1], alpha=0.7, label='Deep Guidance X')
+    plt.plot(t,data[:,2], alpha=0.7, label='Deep Guidance Y')
+    plt.plot(t,data[:,3], alpha=0.7, label='Deep Guidance Z')
     plt.plot(t,data[:,4], alpha=0.7, label='Z')
     plt.grid();plt.legend()
 
@@ -33,9 +33,9 @@ def plot_data(data):
     plt.grid();plt.legend()
 
     plt.subplot(313)
-    plt.plot(t,data[:,13], alpha=0.7, label='Follower VX')
-    plt.plot(t,data[:,14], alpha=0.7, label='VY')
-    plt.plot(t,data[:,15], alpha=0.7, label='VZ')
+    plt.plot(t,data[:,5], alpha=0.7, label='Smoothed guidance X')
+    plt.plot(t,data[:,6], alpha=0.7, label='Smoothed guidance Y')
+    plt.plot(t,data[:,7], alpha=0.7, label='Smoothed guidance Z')
     plt.grid();plt.legend()
 
     # plt.subplot(313)

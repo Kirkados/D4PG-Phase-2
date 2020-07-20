@@ -51,11 +51,14 @@ Started April 21, 2020
 """
 import numpy as np
 import os
+import psutil # FOR RAM USAGE
 import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
 import faulthandler # Added July 11 2020 to debug "segmentation faule (core dumped)" error
+import sys
+import time
 
 import matplotlib
 matplotlib.use('Agg')
@@ -64,6 +67,23 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.mplot3d import Axes3D
+
+
+
+
+# For printing out all variables and their sizes
+def sizeof_fmt(num, suffix='B'):
+    ''' by Fred Cirera,  https://stackoverflow.com/a/1094933/1870254, modified'''
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Yi', suffix)
+
+
+
+
+
 
 class Environment:
 
@@ -97,8 +117,8 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   2 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   2 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
         self.END_ON_FALL                      = False # end episode on a fall off the table
@@ -110,7 +130,7 @@ class Environment:
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
-        self.SKIP_FAILED_ANIMATIONS           = False # Error the program or skip when animations fail?
+        self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
         
         # Obstacle properties
         self.USE_OBSTACLE              = False # Also change self.IRRELEVANT_STATES
@@ -119,7 +139,6 @@ class Environment:
         self.OBSTACLE_INITIAL_POSITION = np.array([1.2, 1.2, 1.2]) # [m]
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
 		
-        """ Note: Kinematic noise is ON """
         # Test time properties
         self.TEST_ON_DYNAMICS            = True # Whether or not to use full dynamics along with a PD controller at test time
         self.KINEMATIC_NOISE             = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
@@ -149,6 +168,14 @@ class Environment:
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
         self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
         self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
+        
+        
+        
+        
+        
+        # Getting the current process
+        #self.process = psutil.Process(os.getpid())
+
 
     ###################################
     ##### Seeding the environment #####
@@ -265,7 +292,7 @@ class Environment:
                  self.chaser_velocity += np.random.randn(len(self.chaser_velocity)) * self.KINEMATIC_VELOCITY_NOISE_SD
             
             # Ensuring the velocity is within the bounds
-            self.chaser_velocity = np.clip(self.chaser_velocity, -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT) # clipping the linear velocity to be within the limits
+            self.chaser_velocity = np.clip(self.chaser_velocity, -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT)
 
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
@@ -443,6 +470,9 @@ class Environment:
         # This permits the process to continue upon a Ctrl+C event to allow for graceful quitting.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+        
+        self.counter = 0 # INITIALIZING
+        
         # Loop until the process is terminated
         while True:
             # Blocks until the agent passes us an action
@@ -462,10 +492,34 @@ class Environment:
                     self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
                     action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
                 
+                
+#                time.sleep(0.1)
+#                for name, size in sorted(((name, sys.getsizeof(value)) for name, value in locals().items()),
+#                                     key= lambda x: -x[1])[:10]:
+#                    print("{:>30}: {:>8}".format(name, sizeof_fmt(size)))
+                
+                
                 ################################
                 ##### Step the environment #####
                 ################################                
                 reward, done = self.step(action)
+                
+                
+                
+                
+                
+                #print(sys.getsizeof(self.action_delay_queue), sys.getsizeof(self.target_location), sys.getsizeof(action))
+                
+                
+                
+                
+                
+                
+                
+                if (self.counter % 1000) == 0:
+                    pass
+                    #print("Environment.py PID %i is using %2.3f GB of RAM" %(os.getpid(), self.process.memory_info().rss/1000000000.0))
+                self.counter += 1
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
                 self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done))
@@ -698,9 +752,9 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         # Update the time text
         time_text.set_text('Time = %.1f s' %(frame*temp_env.TIMESTEP))
 
-#       # Update the reward text
+        # Update the reward text
         reward_text.set_text('Total reward = %.1f' %cumulative_reward_log[frame])
-#
+        
         if extra_information:
             # Updating the instantaneous reward bar graph
             reward_bar[0].set_width(instantaneous_reward_log[frame])

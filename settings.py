@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'ram_test_no_noise' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'average_delay2_no_noise' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_accel' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -111,7 +111,7 @@ class Settings:
         env = environment_file.Environment('Temporary environment', 0, CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES, VIDEO_RECORD_FREQUENCY, MODEL_SAVE_DIRECTORY) # Additional parameters needed for gym
     else:
         env = environment_file.Environment()
-
+        
     OBSERVATION_SIZE                 = env.OBSERVATION_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE # augmenting the state with past actions and states
     UPPER_STATE_BOUND                = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])
     LOWER_STATE_BOUND                = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])

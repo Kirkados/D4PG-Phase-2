@@ -46,9 +46,9 @@ import datetime
 import psutil
 import tensorflow as tf
 import numpy as np
+import sys
 
 # My own
-from agent import Agent
 from learner import Learner
 from replay_buffer import ReplayBuffer
 from prioritized_replay_buffer import PrioritizedReplayBuffer
@@ -57,6 +57,27 @@ import saver
 
 environment_file = __import__('environment_' + Settings.ENVIRONMENT)
 agent_file       = __import__('agent' + Settings.AGENT)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #%%
 ##########################
@@ -140,6 +161,55 @@ with tf.Session(config = config) as sess:
 
     if Settings.KINEMATIC_NOISE:
         print("Noise is being applied to the kinematics during training to simulate a poor controller\n")
+
+
+
+
+
+
+
+
+
+    def get_size(obj, seen=None):
+        """Recursively finds size of objects"""
+        size = sys.getsizeof(obj)
+        if seen is None:
+            seen = set()
+        obj_id = id(obj)
+        if obj_id in seen:
+            return 0
+        # Important mark as seen *before* entering recursion to gracefully handle
+        # self-referential objects
+        seen.add(obj_id)
+        if isinstance(obj, dict):
+            size += sum([get_size(v, seen) for v in obj.values()])
+            size += sum([get_size(k, seen) for k in obj.keys()])
+        elif hasattr(obj, '__dict__'):
+            size += get_size(obj.__dict__, seen)
+        elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+            size += sum([get_size(i, seen) for i in obj])
+        return size
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     ##############################
     ##### Initializing items #####
@@ -248,15 +318,45 @@ with tf.Session(config = config) as sess:
     # Write the Tensorflow computation graph to file, now that it has been fully built
     writer.add_graph(sess.graph)
     print('Done starting!')
+    
+    
+    
+    
+    
+    
 
+    # For printing out all variables and their sizes
+    def sizeof_fmt(num, suffix='B'):
+        ''' by Fred Cirera,  https://stackoverflow.com/a/1094933/1870254, modified'''
+        for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+            if abs(num) < 1024.0:
+                return "%3.1f %s%s" % (num, unit, suffix)
+            num /= 1024.0
+        return "%.1f %s%s" % (num, 'Yi', suffix)
+    
+    
+    
+    
+    
+    
+    
+    
 
     ####################################################
     ##### Waiting until all threads have completed #####
     ####################################################
     print("Running until threads finish or until you press Ctrl + C")
+
+    # Getting the current process
+    process = psutil.Process(os.getpid())
+
     try:
         while True:
             time.sleep(0.5)
+            print("Main.py (Environment %s) is using %2.3f GB of RAM and the buffer has %i samples" %(Settings.RUN_NAME, process.memory_info().rss/1000000000.0, replay_buffer.how_filled()))
+
+                
+
             # If all threads have ended on their own
             if not any(each_thread.is_alive() for each_thread in threads):
                 print("All threads ended naturally.")

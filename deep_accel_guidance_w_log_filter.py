@@ -42,13 +42,13 @@ def main():
     i=0 # for log increment
 
     ## Prepare Filter Specs : ##
-    fs = 5        # Sampling frequency
-    order = 2
-    cutoff = 2.0
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = signal.butter(order, normal_cutoff)
-    dgn = dge = dgd = signal.lfilter_zi(b, a)
+#    fs = 5        # Sampling frequency
+#    order = 2
+#    cutoff = 2.0
+#    nyq = 0.5 * fs
+#    normal_cutoff = cutoff / nyq
+#    b, a = signal.butter(order, normal_cutoff)
+#    dgn = dge = dgd = signal.lfilter_zi(b, a)
     
 
 
@@ -142,10 +142,7 @@ def main():
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
-                        
-                # Save raw policy input incase we want to augment state with it
-                raw_policy_input = policy_input
-                    
+
                 # Augment state with past action data if applicable
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                        
                     past_action_data = np.asarray(past_actions.queue).reshape([-1]) # past actions reshaped into a column
@@ -155,18 +152,7 @@ def main():
                     
                     # Concatenate past actions to the policy input
                     policy_input = np.concatenate([policy_input, past_action_data])
-                    
-                if Settings.AUGMENT_STATE_WITH_STATE_LENGTH > 0:
-                    past_state_data = np.asarray(past_states.queue).reshape([-1]) # past actions reshaped into a column
-                    
-                    # Remove the oldest entry from the state log queue
-                    past_states.get(False)
-                    
-                    # Add current policy input to past_states so they'll be included in the augmented state next timestep
-                    past_states.put(raw_policy_input, False)
-                    
-                    # Concatenate past states to the policy input
-                    policy_input = np.concatenate([policy_input, past_state_data])
+
                     
                     
                     
@@ -199,9 +185,9 @@ def main():
                 current_velocity = policy_input[7:10]
                 deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[1:]) == np.sign(current_velocity))] = 0 
                 
-                deep_guidance[0], dgn = signal.lfilter(b, a, [deep_guidance[0]] , zi=dgn)
-                deep_guidance[1], dge = signal.lfilter(b, a, [deep_guidance[1]] , zi=dge)
-                deep_guidance[2], dgd = signal.lfilter(b, a, [deep_guidance[2]] , zi=dgd)
+#                deep_guidance[0], dgn = signal.lfilter(b, a, [deep_guidance[0]] , zi=dgn)
+#                deep_guidance[1], dge = signal.lfilter(b, a, [deep_guidance[1]] , zi=dge)
+#                deep_guidance[2], dgd = signal.lfilter(b, a, [deep_guidance[2]] , zi=dgd)
                 
                 # deep_guidance[2], deep_guidance_prev_filt[2] = signal.lfilter(b, a, deep_guidance[2], zi=deep_guidance_prev_filt[2])
                 # deep_guidance[3], deep_guidance_prev_filt[3] = signal.lfilter(b, a, deep_guidance[3], zi=deep_guidance_prev_filt[3])

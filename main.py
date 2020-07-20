@@ -20,7 +20,7 @@ Each instance of the environment is contained in a different process due to scip
 ===== Notes =====
 No notes at the moment
 
-@author: Kirk Hovell (khovell@gmail.com
+@author: Kirk Hovell (khovell@gmail.com)
 
 Special thanks to:
     - msinto93 (https://github.com/msinto93)

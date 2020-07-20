@@ -26,7 +26,7 @@ def main():
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
-    parser.add_argument("-f", "--filename", dest='log_filename', default='log_000', type=str, help="Log file name")
+    parser.add_argument("-f", "--filename", dest='log_filename', default='log_velocity_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None

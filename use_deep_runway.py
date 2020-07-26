@@ -21,12 +21,13 @@ from build_neural_networks import BuildActorNetwork
 from guidance_common import Rotorcraft , Guidance
 
 
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
-    parser.add_argument("-f", "--filename", dest='log_filename', default='log_accel_000', type=str, help="Log file name")
+    parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None
@@ -71,7 +72,7 @@ def main():
             sleep(0.1)
             # g.set_guided_mode()
             sleep(0.2)
-            last_target_yaw = 0.0
+
             total_time = 0.0
             
             last_deep_guidance = np.zeros(Settings.ACTION_SIZE)
@@ -82,14 +83,19 @@ def main():
         
                 # Fill it with zeros to start
                 for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
-                    past_actions.put(np.zeros(Settings.ACTION_SIZE), False)
+                    past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
+            
+            runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
                 
             while True:
                 # TODO: make better frequency managing
                 sleep(g.step)
                 total_time = total_time + g.step
-                # print('G IDS : ',g.ids) # debug....
-                policy_input = np.zeros(Settings.TOTAL_STATE_SIZE) # initializing policy input
+                
+                # Initializing quadrotor positions and velocities
+                quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 
+                quad_velocities = np.zeros([Settings.NUMBER_OF_QUADS, 3])
+                total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
                     
@@ -97,76 +103,97 @@ def main():
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
                                           chaser_x_dot, chaser_y_dot, chaser_z_dot, (optional past action data)] 
                     """
+                    quad_number = rc.id - 1
                     
-                                    
-                    #print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
-                    if rc.id == target_id: # we've found the target
-                        policy_input[3] =  rc.X[0] # target X [north] =   North
-                        policy_input[4] = -rc.X[1] # targey Y [west]  = - East
-                        policy_input[5] =  rc.X[2] # target Z [up]    =   Up
-                        policy_input[6] =  np.unwrap([last_target_yaw, -rc.W[2]])[1] # target yaw  [counter-clockwise] = -yaw [clockwise]
-                        last_target_yaw = policy_input[6]
-                        #print("Target position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f" %(rc.X[0], -rc.X[1], rc.X[2], -rc.W[2]))
-                        # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
-                    if rc.id == follower_id: # we've found the chaser (follower)
-                        policy_input[0] =  rc.X[0] # chaser X [north] =   North
-                        policy_input[1] = -rc.X[1] # chaser Y [west]  = - East
-                        policy_input[2] =  rc.X[2] # chaser Z [up]    =   Up                        
-                        
-                        policy_input[7] =  rc.V[0] # chaser V_x [north] =   North
-                        policy_input[8] = -rc.V[1] # chaser V_y [west]  = - East
-                        policy_input[9] =  rc.V[2] # chaser V_z [up]    =   Up
-                        print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f" %(rc.X[0], -rc.X[1], rc.X[2], rc.V[0], -rc.V[1], rc.V[2]))
-                        
-                        #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
-                        # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
+                    # Extracting position
+                    quad_positions[ quad_number, quad_number * 6 + 0] =  rc.X[0]
+                    quad_positions[ quad_number, quad_number * 6 + 1] = -rc.X[1]
+                    quad_positions[ quad_number, quad_number * 6 + 2] =  rc.X[2]
                     
-                # Augment state with past action data if applicable
-                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:                        
-                    past_action_data = np.asarray(past_actions.queue).reshape([-1]) # past actions reshaped into a column
+                    # Extracting velocity
+                    quad_velocities[quad_number, quad_number * 6 + 3] =  rc.V[0]
+                    quad_velocities[quad_number, quad_number * 6 + 4] = -rc.V[1]
+                    quad_velocities[quad_number, quad_number * 6 + 5] =  rc.V[2]
+                
+                # Check runway state
+                # The size of each runway grid element
+                each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
+                each_runway_width_element  = Settings.RUNWAY_WIDTH/Settings.RUNWAY_WIDTH_ELEMENTS
+                
+                # Which zones is each quad in?
+                rows = np.floor(quad_positions[:,0]/each_runway_length_element).astype(int)
+                columns = np.floor(quad_positions[:,1]/each_runway_width_element).astype(int)
+        
+                # Which zones are actually over the runway?
+                elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS))
+                
+                # Removing runway elements that are not over the runway
+                rows = rows[elements_to_keep]
+                columns = columns[elements_to_keep]
+        
+                # Mark the visited tiles as explored
+                runway_state[rows,columns] = 1
+                
+                if np.all(runway_state) == 1:
+                    print("Explored the entire runway--Congratualtions! Quitting deep guidance")
+                    break
+                
+                # Building NUMBER_OF_QUADS states
+                for i in range(Settings.NUMBER_OF_QUADS):
+                    # Start state with your own 
+                    this_quads_state = np.concatenate([quad_positions[i,:], quad_velocities[i,:]])               
+                    # Add in the others' states, starting with the next quad and finishing with the previous quad
+                    for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
+                        this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
                     
+                    # All quad data is included, now append the runway state and save it to the total_state
+                    total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                    
+                    
+                # Augment total_state with past actions, if appropriate
+                if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
+                    # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                    # Just received a total_state from the environment, need to augment 
+                    # it with the past action data and return it
+                    # The past_action_data is of shape [Settings.AUGMENT_STATE_WITH_ACTION_LENGTH, Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                    # I swap the first and second axes so that I can reshape it properly
+            
+                    past_action_data = np.swapaxes(np.asarray(past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad     
+                    total_states = np.concatenate([total_states, past_action_data], axis = 1)
+            
                     # Remove the oldest entry from the action log queue
                     past_actions.get(False)
-                    
-                    # Concatenate past actions to the policy input
-                    policy_input = np.concatenate([policy_input, past_action_data])
-                    
-                ############################################################
-                ##### Received data! Process it and return the result! #####
-                ############################################################
-        	    # Calculating the proper policy input (deleting irrelevant states and normalizing input)
-                # Normalizing
+
+
+                # Normalize the state
                 if Settings.NORMALIZE_STATE:
-                    normalized_policy_input = (policy_input - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
-                else:
-                    normalized_policy_input = policy_input
-        
+                    total_states = (total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
+
                 # Discarding irrelevant states
-                normalized_policy_input = np.delete(normalized_policy_input, Settings.IRRELEVANT_STATES)
-        
-                # Reshaping the input
-                normalized_policy_input = normalized_policy_input.reshape([-1, Settings.OBSERVATION_SIZE])
-        
+                observations = np.delete(total_states, Settings.IRRELEVANT_STATES, axis = 1)
+                
                 # Run processed state through the policy
-                deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:normalized_policy_input})[0]
-                # deep guidance = [ chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
+                deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:observations}) # deep guidance = [ chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
                 
                 # Adding the action taken to the past_action log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     past_actions.put(deep_guidance)
-                    
+
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-                current_velocity = policy_input[7:10]                
-                deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(current_velocity))] = 0 
+                for i in range(Settings.NUMBER_OF_QUADS):              
+                    deep_guidance[(np.abs(quad_velocities[i,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(quad_velocities[i,:]))] = 0 
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
                 
                 # Send velocity/acceleration command to aircraft!
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
-                g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2])
-                #g.accelerate(north = 1, east = 0.1, down = 0)
+                
+                # Get each quad to accelerate appropriately
+                for i in range(Settings.NUMBER_OF_QUADS):
+                    #g.accelerate(north = average_deep_guidance[i,0], east = -average_deep_guidance[i,1], down = -average_deep_guidance[i,2], quad_id = i + 1) # Averaged
+                    g.accelerate(north = deep_guidance[i,0], east = -deep_guidance[i,1], down = -deep_guidance[i,2], quad_id = i + 1) # Raw
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
@@ -174,7 +201,7 @@ def main():
                 log_placeholder[i,1:4] = deep_guidance
                 log_placeholder[i,4:7] = average_deep_guidance
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,7:7+len(normalized_policy_input[0])] = policy_input
+                log_placeholder[i,7:7+len(observations[0])] = observations
                 i += 1
     
 

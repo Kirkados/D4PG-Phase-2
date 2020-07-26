@@ -132,6 +132,11 @@ class Settings:
     AUGMENT_STATE_WITH_ACTION_LENGTH = env.AUGMENT_STATE_WITH_ACTION_LENGTH
     VELOCITY_LIMIT                   = env.VELOCITY_LIMIT
     NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
+    RUNWAY_LENGTH_ELEMENTS           = env.RUNWAY_LENGTH_ELEMENTS
+    RUNWAY_WIDTH_ELEMENTS            = env.RUNWAY_WIDTH_ELEMENTS
+    RUNWAY_LENGTH                    = env.RUNWAY_LENGTH
+    RUNWAY_WIDTH                     = env.RUNWAY_WIDTH
+    MINIMUM_CAMERA_ALTITUDE          = env.MINIMUM_CAMERA_ALTITUDE
             
     # Delete the test environment
     del env

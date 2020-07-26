@@ -235,9 +235,9 @@ class Guidance(object):
         print("move at vel body: %s" % msg)
         self._interface.send_raw_datalink(msg)
 
-    def accelerate(self, north=0.0, east=0.0, down=0.0):
+    def accelerate(self, north=0.0, east=0.0, down=0.0, quad_id = 2):
         msg = PprzMessage("datalink", "DESIRED_SETPOINT")
-        msg['ac_id'] = self.ac_id
+        msg['ac_id'] = quad_id
         msg['flag'] = 1 # full 3D
         msg['ux'] = north
         msg['uy'] = east

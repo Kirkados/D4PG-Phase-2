@@ -86,6 +86,7 @@ def main():
                     past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
             
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
+            last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
                 
             while True:
                 # TODO: make better frequency managing
@@ -137,11 +138,13 @@ def main():
         
                 # Mark the visited tiles as explored
                 runway_state[rows,columns] = 1
+                #print(runway_state,last_runway_state)
                 
-                print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
+                if np.any(last_runway_state != runway_state):
+                    print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
                 
                 if np.all(runway_state) == 1:
-                    print("Explored the entire runway--Congratualtions! Quitting deep guidance")
+                    print("Explored the entire runway in %.2f seconds--Congratualtions! Quitting deep guidance" %(time.time()-start_time))
                     sys.exit()
                 
                 # Building NUMBER_OF_QUADS states
@@ -192,6 +195,8 @@ def main():
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
+                last_runway_state = np.copy(runway_state)
+                #last_runway_state = runway_state
                 
                 # Send velocity/acceleration command to aircraft!
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])

@@ -16,9 +16,9 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'average_delay1_no_noise' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_accel' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
-    AGENT                  = '' # '' for Task 1, '_runway' for runway experiment
+    RUN_NAME               = 'average_delay1_DEBUGGING' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
+    AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # 20 Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)

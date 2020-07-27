@@ -122,6 +122,7 @@ class Agent:
     def augment_state_with_actions(self, total_state):
         # Just received a total_state from the environment, need to augment 
         # it with the past action data and return it
+        
         past_action_data = np.asarray(self.past_actions.queue).reshape([-1]) # past actions reshaped into a column
         augmented_state = np.concatenate([total_state, past_action_data])
         

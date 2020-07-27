@@ -35,8 +35,8 @@ def main():
     follower_id = args.follower_id
     log_filename = args.log_filename
     max_duration = 100000
-    log_placeholder = np.zeros((max_duration, 30))
-    i=0 # for log increment
+    log_placeholder = np.zeros((max_duration, 100))
+    i = 0 # for log increment
     
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
@@ -82,7 +82,7 @@ def main():
                 past_actions = queue.Queue(maxsize = Settings.AUGMENT_STATE_WITH_ACTION_LENGTH)
         
                 # Fill it with zeros to start
-                for i in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
+                for j in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
                     past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
             
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
@@ -103,17 +103,21 @@ def main():
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
                                           chaser_x_dot, chaser_y_dot, chaser_z_dot, (optional past action data)] 
                     """
+
                     quad_number = rc.id - 1
-                    
-                    # Extracting position
-                    quad_positions[ quad_number, quad_number * 6 + 0] =  rc.X[0]
-                    quad_positions[ quad_number, quad_number * 6 + 1] = -rc.X[1]
-                    quad_positions[ quad_number, quad_number * 6 + 2] =  rc.X[2]
-                    
-                    # Extracting velocity
-                    quad_velocities[quad_number, quad_number * 6 + 3] =  rc.V[0]
-                    quad_velocities[quad_number, quad_number * 6 + 4] = -rc.V[1]
-                    quad_velocities[quad_number, quad_number * 6 + 5] =  rc.V[2]
+                    try:
+                        # Extracting position
+                        quad_positions[ quad_number, 0] =  rc.X[0]
+                        quad_positions[ quad_number, 1] = -rc.X[1]
+                        quad_positions[ quad_number, 2] =  rc.X[2]
+                        
+                        # Extracting velocity
+                        quad_velocities[quad_number, 0] =  rc.V[0]
+                        quad_velocities[quad_number, 1] = -rc.V[1]
+                        quad_velocities[quad_number, 2] =  rc.V[2]
+                    except:
+                        print("The quad IDs must start at 1 and increase from there!")
+                        raise SystemExit
                 
                 # Check runway state
                 # The size of each runway grid element
@@ -134,20 +138,22 @@ def main():
                 # Mark the visited tiles as explored
                 runway_state[rows,columns] = 1
                 
+                print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
+                
                 if np.all(runway_state) == 1:
                     print("Explored the entire runway--Congratualtions! Quitting deep guidance")
-                    break
+                    sys.exit()
                 
                 # Building NUMBER_OF_QUADS states
-                for i in range(Settings.NUMBER_OF_QUADS):
+                for j in range(Settings.NUMBER_OF_QUADS):
                     # Start state with your own 
-                    this_quads_state = np.concatenate([quad_positions[i,:], quad_velocities[i,:]])               
+                    this_quads_state = np.concatenate([quad_positions[j,:], quad_velocities[j,:]])               
                     # Add in the others' states, starting with the next quad and finishing with the previous quad
-                    for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
-                        this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
+                    for k in range(j + 1, Settings.NUMBER_OF_QUADS + j):
+                        this_quads_state = np.concatenate([this_quads_state, quad_positions[k % Settings.NUMBER_OF_QUADS,:], quad_velocities[k % Settings.NUMBER_OF_QUADS,:]])
                     
                     # All quad data is included, now append the runway state and save it to the total_state
-                    total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                    total_states[j,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
                     
                     
                 # Augment total_state with past actions, if appropriate
@@ -181,8 +187,8 @@ def main():
 
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-                for i in range(Settings.NUMBER_OF_QUADS):              
-                    deep_guidance[(np.abs(quad_velocities[i,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(quad_velocities[i,:]))] = 0 
+                for j in range(Settings.NUMBER_OF_QUADS):              
+                    deep_guidance[(np.abs(quad_velocities[j,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(quad_velocities[j,:]))] = 0 
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
@@ -191,28 +197,30 @@ def main():
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 
                 # Get each quad to accelerate appropriately
-                for i in range(Settings.NUMBER_OF_QUADS):
-                    #g.accelerate(north = average_deep_guidance[i,0], east = -average_deep_guidance[i,1], down = -average_deep_guidance[i,2], quad_id = i + 1) # Averaged
-                    g.accelerate(north = deep_guidance[i,0], east = -deep_guidance[i,1], down = -deep_guidance[i,2], quad_id = i + 1) # Raw
+                for j in range(Settings.NUMBER_OF_QUADS):
+                    #g.accelerate(north = average_deep_guidance[i,0], east = -average_deep_guidance[i,1], down = -average_deep_guidance[i,2], quad_id = j + 1) # Averaged
+                    g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -deep_guidance[j,2], quad_id = j + 1) # Raw
+                    g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = 0, quad_id = j + 1) # Raw
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:4] = deep_guidance
-                log_placeholder[i,4:7] = average_deep_guidance
+                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = deep_guidance.reshape(-1)
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,7:7+len(observations[0])] = observations
+                log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1
     
 
 
-        except (KeyboardInterrupt, SystemExit):
+        except:
             print('Shutting down...')
             g.set_nav_mode()
             g.shutdown()
             sleep(0.2)
+            print("Saving file as %s.txt..." %(log_filename))
             with open(log_filename+".txt", 'wb') as f:
                 np.save(f, log_placeholder[:i])
+            print("Done!")
             exit()
 
 

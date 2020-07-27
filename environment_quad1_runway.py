@@ -84,8 +84,10 @@ class Environment:
         self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
                                                    #  other2_Vx, other2_Vy, other2_Vz]  
-        self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
-        self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
+        #self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
+        #self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
+        self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
+        self.RUNWAY_LENGTH                    = 8 # [m] in X (North)
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network

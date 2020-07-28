@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'runway_print_test' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'runway_indoors_v2' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -137,6 +137,7 @@ class Settings:
     RUNWAY_LENGTH                    = env.RUNWAY_LENGTH
     RUNWAY_WIDTH                     = env.RUNWAY_WIDTH
     MINIMUM_CAMERA_ALTITUDE          = env.MINIMUM_CAMERA_ALTITUDE
+    MAXIMUM_CAMERA_ALTITUDE          = env.MAXIMUM_CAMERA_ALTITUDE
             
     # Delete the test environment
     del env

@@ -130,7 +130,7 @@ def main():
                 columns = np.floor(quad_positions[:,1]/each_runway_width_element).astype(int)
         
                 # Which zones are actually over the runway?
-                elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS))
+                elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS) & (Settings.quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (Settings.quad_positions[:,2] <= Settings.MAXIMUM_CAMERA_ALTITUDE))
                 
                 # Removing runway elements that are not over the runway
                 rows = rows[elements_to_keep]

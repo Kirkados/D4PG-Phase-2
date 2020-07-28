@@ -82,20 +82,28 @@ class Environment:
         ##### Environment Properties #####
         ##################################
         self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
-        self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z
-                                                   #  other2_Vx, other2_Vy, other2_Vz]  
-        #self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
-        #self.RUNWAY_LENGTH                    = 124 # [m] in X (North)
-        self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
-        self.RUNWAY_LENGTH                    = 8 # [m] in X (North)
+        self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
+        self.INDOORS                          = True # True = indoors; False = outdoors
+        if self.INDOORS:
+            self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
+            self.RUNWAY_LENGTH                    = 8 # [m] in X (North)
+        else:
+            self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
+            self.RUNWAY_LENGTH                    = 124 # [m] in X (North)        
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
-        self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
-        self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
+        if self.INDOORS:
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
+            self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
+        else:            
+            self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
+            self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 0.0]) # [m, m, m]
@@ -131,11 +139,20 @@ class Environment:
         self.COLLISION_PENALTY                = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.VELOCITY_LIMIT                   = 10 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
         self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
-        self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
-        self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
-        self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
+        if self.INDOORS:  
+            self.VELOCITY_LIMIT                   = 4 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap        
+            self.MINIMUM_CAMERA_ALTITUDE          = 2 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+            self.MAXIMUM_CAMERA_ALTITUDE          = 4 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
+            self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
+            self.PROXIMITY_PENALTY_FACTOR         = 0.43 # how much the penalty decays with distance -> a penalty of 0.01 when they are 2 m apart. To change: = -distance/ln(desired_penalty)
+        
+        else:
+            self.VELOCITY_LIMIT                   = 10 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
+            self.MINIMUM_CAMERA_ALTITUDE          = 10 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+            self.MAXIMUM_CAMERA_ALTITUDE          = 20 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
+            self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
+            self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
         
         
         # Performing some calculations  
@@ -310,7 +327,7 @@ class Environment:
         columns = np.floor(self.quad_positions[:,1]//each_runway_width_element).astype(int)
 
         # Which zones are actually over the runway?
-        elements_to_keep = np.array((rows >= 0) & (rows < self.RUNWAY_LENGTH_ELEMENTS) & (self.quad_positions[:,2] >= self.MINIMUM_CAMERA_ALTITUDE) & (columns >= 0) & (columns < self.RUNWAY_WIDTH_ELEMENTS))
+        elements_to_keep = np.array((rows >= 0) & (rows < self.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < self.RUNWAY_WIDTH_ELEMENTS) & (self.quad_positions[:,2] >= self.MINIMUM_CAMERA_ALTITUDE) & (self.quad_positions[:,2] <= self.MAXIMUM_CAMERA_ALTITUDE))
         
         # Removing runway elements that are not over the runway
         rows = rows[elements_to_keep]

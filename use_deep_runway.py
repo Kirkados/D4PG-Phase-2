@@ -142,6 +142,9 @@ def main():
                 
                 if np.any(last_runway_state != runway_state):
                     print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
+                    
+                    # Draw a new runway
+                    print(np.flip(runway_state))
                 
                 if np.all(runway_state) == 1:
                     print("Explored the entire runway in %.2f seconds--Congratualtions! Quitting deep guidance" %(time.time()-start_time))

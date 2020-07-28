@@ -162,7 +162,6 @@ class Environment:
         self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
 
-
     ###################################
     ##### Seeding the environment #####
     ###################################

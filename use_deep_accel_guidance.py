@@ -27,12 +27,14 @@ def main():
     parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_accel_000', type=str, help="Log file name")
+    parser.add_argument("-d", "--deadband", dest='deadband_radius', default='0.0', type=float, help="deadband radius")
     args = parser.parse_args()
 
     interface = None
     target_id = args.target_id
     follower_id = args.follower_id
     log_filename = args.log_filename
+    deadband_radius = args.deadband_radius
     max_duration = 100000
     log_placeholder = np.zeros((max_duration, 30))
     i=0 # for log increment
@@ -160,6 +162,11 @@ def main():
                 current_velocity = policy_input[7:10]                
                 deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(current_velocity))] = 0 
         
+                # If we are in the deadband, set the acceleration to zero!
+                desired_location = np.array([policy_input[3]+3*np.cos(policy_input[6]), policy_input[4]+3*np.sin(policy_input[6]), policy_input[5]])
+                current_location = policy_input[0:3]
+                deep_guidance[np.abs((np.abs(current_location) - np.abs(desired_location))) < deadband_radius] = 0
+                
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
                 

@@ -95,8 +95,8 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         if self.INDOORS:
-            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/10.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/10.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -3., -3.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 3.,  self.RUNWAY_WIDTH + 3.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
         else:            
@@ -113,8 +113,8 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property

@@ -194,7 +194,7 @@ def main():
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
                 for j in range(Settings.NUMBER_OF_QUADS):              
-                    deep_guidance[(np.abs(quad_velocities[j,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(quad_velocities[j,:]))] = 0 
+                    deep_guidance[j,(np.abs(quad_velocities[j,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,:]))] = 0 
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
@@ -208,7 +208,7 @@ def main():
                 for j in range(Settings.NUMBER_OF_QUADS):
                     #g.accelerate(north = average_deep_guidance[i,0], east = -average_deep_guidance[i,1], down = -average_deep_guidance[i,2], quad_id = j + 1) # Averaged
                     g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -deep_guidance[j,2], quad_id = j + 1) # Raw
-                    g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = 0, quad_id = j + 1) # Raw
+                    #g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = 0, quad_id = j + 1) # Raw
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
@@ -220,7 +220,7 @@ def main():
     
 
 
-        except:
+        except (KeyboardInterrupt, SystemExit):
             print('Shutting down...')
             g.set_nav_mode()
             g.shutdown()

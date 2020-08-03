@@ -351,9 +351,12 @@ with tf.Session(config = config) as sess:
     process = psutil.Process(os.getpid())
 
     try:
+        counter = 0
         while True:
             time.sleep(0.5)
-            print("Main.py (Environment %s) is using %2.3f GB of RAM and the buffer has %i samples" %(Settings.RUN_NAME, process.memory_info().rss/1000000000.0, replay_buffer.how_filled()))
+            if counter % 1200 == 0:
+                print("Main.py (Environment %s) is using %2.3f GB of RAM and the buffer has %i samples" %(Settings.RUN_NAME, process.memory_info().rss/1000000000.0, replay_buffer.how_filled()))
+            counter += 1
 
                 
 

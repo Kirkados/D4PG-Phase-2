@@ -86,7 +86,7 @@ class Environment:
         self.INDOORS                          = True # True = indoors; False = outdoors
         if self.INDOORS:
             self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
-            self.RUNWAY_LENGTH                    = 8 # [m] in X (North)
+            self.RUNWAY_LENGTH                    = 4 # [m] in X (North)
         else:
             self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 124 # [m] in X (North)        
@@ -95,10 +95,10 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         if self.INDOORS:
-            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
-            self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
-            self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/10.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/10.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -3., -3.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
+            self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 3.,  self.RUNWAY_WIDTH + 3.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
         else:            
             self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
             self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]

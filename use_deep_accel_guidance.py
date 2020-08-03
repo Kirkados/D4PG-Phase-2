@@ -118,7 +118,7 @@ def main():
                         policy_input[7] =  rc.V[0] # chaser V_x [north] =   North
                         policy_input[8] = -rc.V[1] # chaser V_y [west]  = - East
                         policy_input[9] =  rc.V[2] # chaser V_z [up]    =   Up
-                        print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f" %(rc.X[0], -rc.X[1], rc.X[2], rc.V[0], -rc.V[1], rc.V[2]))
+                        
                         
                         #print("Time: %.2f; Chaser position: X: %.2f; Y: %.2f; Z: %.2f; Att %.2f; Vx: %.2f; Vy: %.2f; Vz: %.2f" %(rc.timeout, rc.X[0], -rc.X[1], rc.X[2], -rc.W[2], rc.V[0], -rc.V[1], rc.V[2]))
                         # Note: rc.X returns position; rc.V returns velocity; rc.W returns attitude
@@ -174,6 +174,8 @@ def main():
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id)
                 #g.accelerate(north = 1, east = 0.1, down = 0)
+                
+                print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f Guidance_X: %.2f, Y: %.2f, Z: %.2f" %(policy_input[0], policy_input[1], policy_input[2], policy_input[7], policy_input[8], policy_input[9], average_deep_guidance[0], average_deep_guidance[1], average_deep_guidance[2]))                
                 
                 # Log all input and outputs:
                 t = time.time()-start_time

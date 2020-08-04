@@ -190,12 +190,14 @@ class Agent:
                 for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
                     this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
                 
-                # All quad data is included, now append the runway state and save it to the total_state
+                # All quad data is included, now append the runway state and save it to the total_state                
                 total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
             
             # Augment total_state with past actions, if appropriate
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                total_states = self.augment_states_with_actions(total_states) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                total_augmented_states = self.augment_states_with_actions(total_states) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+            else:
+                total_augmented_states = total_states.copy()
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -215,7 +217,7 @@ class Agent:
                     cumulative_reward_log = []
                     done_log = []
                     discount_factor_log = []
-                    raw_total_state_log.append(total_states)
+                    raw_total_state_log.append(total_augmented_states)
                     cumulative_reward_log.append(np.zeros(Settings.NUMBER_OF_QUADS)) # starting with 0 rewards (even if we are on a runway element initially)
 
             else:
@@ -226,10 +228,10 @@ class Agent:
             # Normalizing the total_state to 1 separately along each dimension
             # to avoid the 'vanishing gradients' problem
             if Settings.NORMALIZE_STATE:
-                total_states = (total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
+                total_augmented_states = (total_augmented_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
 
             # Discarding irrelevant states to obtain the observation
-            observations = np.delete(total_states, Settings.IRRELEVANT_STATES, axis = 1)
+            observations = np.delete(total_augmented_states, Settings.IRRELEVANT_STATES, axis = 1)
 
             # Resetting items for this episode
             episode_rewards = np.zeros(Settings.NUMBER_OF_QUADS)
@@ -256,9 +258,7 @@ class Agent:
 
                 # Adding the action taken to the past_actions log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    print(self.past_actions.queue)
                     self.past_actions.put(actions) # [Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]
-                    print(self.past_actions.queue)
 
                 ################################################
                 #### Step the dynamics forward one timestep ####
@@ -285,18 +285,20 @@ class Agent:
                 
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
-                    next_total_states = self.augment_states_with_actions(next_total_states)
+                    next_augmented_total_states = self.augment_states_with_actions(next_total_states)
+                else:
+                    next_augmented_total_states = next_total_states.copy()
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
-                    raw_total_state_log.append(next_total_states.copy())
+                    raw_total_state_log.append(next_augmented_total_states.copy())
                     cumulative_reward_log.append(list(episode_rewards))
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:
-                    next_total_states = (next_total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
+                    next_augmented_total_states = (next_augmented_total_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
 
                 # Discarding irrelevant states
-                next_observations = np.delete(next_total_states, Settings.IRRELEVANT_STATES, axis = 1)
+                next_observations = np.delete(next_augmented_total_states, Settings.IRRELEVANT_STATES, axis = 1)
 
                 # Store the data in this temporary buffer until we calculate the n-step return
                 self.n_step_memory.append((observations, actions, rewards))

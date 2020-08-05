@@ -96,7 +96,6 @@ def main():
                 # Initializing quadrotor positions and velocities
                 quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 
                 quad_velocities = np.zeros([Settings.NUMBER_OF_QUADS, 3])
-                total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
                 for rc in g.rotorcrafts:
                     rc.timeout = rc.timeout + g.step
                     
@@ -150,6 +149,7 @@ def main():
                     print("Explored the entire runway in %.2f seconds--Congratualtions! Quitting deep guidance" %(time.time()-start_time))
                     sys.exit()
                 
+                total_states = []
                 # Building NUMBER_OF_QUADS states
                 for j in range(Settings.NUMBER_OF_QUADS):
                     # Start state with your own 
@@ -159,7 +159,7 @@ def main():
                         this_quads_state = np.concatenate([this_quads_state, quad_positions[k % Settings.NUMBER_OF_QUADS,:], quad_velocities[k % Settings.NUMBER_OF_QUADS,:]])
                     
                     # All quad data is included, now append the runway state and save it to the total_state
-                    total_states[j,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                    total_states.append(this_quads_state)
                     
                     
                 # Augment total_state with past actions, if appropriate
@@ -171,11 +171,13 @@ def main():
                     # I swap the first and second axes so that I can reshape it properly
             
                     past_action_data = np.swapaxes(np.asarray(past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad     
-                    total_states = np.concatenate([total_states, past_action_data], axis = 1)
+                    total_states = np.concatenate([np.asarray(total_states), past_action_data], axis = 1)
             
                     # Remove the oldest entry from the action log queue
                     past_actions.get(False)
-
+                
+                # Concatenating the runway to the augmented state
+                total_states = np.concatenate([total_states, np.tile(runway_state.reshape(-1),(Settings.NUMBER_OF_QUADS,1))], axis = 1)
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:

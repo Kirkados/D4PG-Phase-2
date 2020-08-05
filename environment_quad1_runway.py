@@ -118,7 +118,7 @@ class Environment:
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
-        self.SKIP_FAILED_ANIMATIONS           = False # Error the program or skip when animations fail?
+        self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
 
         # Test time properties
         self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time

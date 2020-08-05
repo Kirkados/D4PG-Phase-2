@@ -81,7 +81,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = True # True = indoors; False = outdoors
         if self.INDOORS:
@@ -107,14 +107,14 @@ class Environment:
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
         self.POSITION_RANDOMIZATION_SD        = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 1.0]) # [m, m, m]
-        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 2.0]) # [m, m, m]         
+        self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 3.0]) # [m, m, m]         
         self.MIN_V                            =  0.
         self.MAX_V                            =  self.RUNWAY_LENGTH_ELEMENTS*self.RUNWAY_WIDTH_ELEMENTS
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property

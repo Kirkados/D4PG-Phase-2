@@ -124,7 +124,7 @@ class Agent:
         # I swap the first and second axes so that I can reshape it properly
 
         past_action_data = np.swapaxes(np.asarray(self.past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad     
-        augmented_states = np.concatenate([total_states, past_action_data], axis = 1)
+        augmented_states = np.concatenate([np.asarray(total_states), past_action_data], axis = 1)
 
         # Remove the oldest entry from the action log queue
         self.past_actions.get(False)
@@ -152,10 +152,6 @@ class Agent:
         # Creating the temporary memory space for calculating N-step returns
         self.n_step_memory = deque()
         
-        # Initializing the total_state
-        total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
-        next_total_states = np.zeros([Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE])
-
         # For all requested episodes or until user flags for a stop (via Ctrl + C)
         while episode_number <= Settings.NUMBER_OF_EPISODES and not stop_run_flag.is_set():
 
@@ -182,6 +178,7 @@ class Agent:
                 self.agent_to_env.put((False, test_time)) # Reset into a kinematics environment
             quad_positions, quad_velocities, runway_state = self.env_to_agent.get()
             
+            total_states = []
             # Building NUMBER_OF_QUADS states
             for i in range(Settings.NUMBER_OF_QUADS):
                 # Start state with your own 
@@ -191,13 +188,16 @@ class Agent:
                     this_quads_state = np.concatenate([this_quads_state, quad_positions[j % Settings.NUMBER_OF_QUADS,:], quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
                 
                 # All quad data is included, now append the runway state and save it to the total_state                
-                total_states[i,:] = np.concatenate([this_quads_state, runway_state.reshape(-1)]) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
+                total_states.append(this_quads_state) # [Settings.NUMBER_OF_QUADS, Settings.BASE_SATE_SIZE]
             
             # Augment total_state with past actions, if appropriate
             if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                 total_augmented_states = self.augment_states_with_actions(total_states) # [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
             else:
-                total_augmented_states = total_states.copy()
+                total_augmented_states = np.asarray(total_states).copy()
+            
+            # Concatenating the runway to the augmented state
+            total_augmented_states = np.concatenate([total_augmented_states, np.tile(runway_state.reshape(-1),(Settings.NUMBER_OF_QUADS,1))], axis = 1)
 
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
@@ -269,6 +269,7 @@ class Agent:
                 # Receive results from stepped environment
                 next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get()
             
+                next_total_states = []
                 # Building NUMBER_OF_QUADS states
                 for i in range(Settings.NUMBER_OF_QUADS):
                     # Start state with your own 
@@ -276,10 +277,9 @@ class Agent:
                     # Add in the others' states, starting with the next quad and finishing with the previous quad
                     for j in range(i + 1, Settings.NUMBER_OF_QUADS + i):
                         this_quads_next_state = np.concatenate([this_quads_next_state, next_quad_positions[j % Settings.NUMBER_OF_QUADS,:], next_quad_velocities[j % Settings.NUMBER_OF_QUADS,:]])
+                                        
+                    next_total_states.append(this_quads_next_state)
                     
-                    # All quad data is included, now append the runway state and save it to the total_state
-                    next_total_states[i,:] = np.concatenate([this_quads_next_state, next_runway_state.reshape(-1)])        
-
                 # Add reward we just received to running total for this episode
                 episode_rewards += rewards # [Settings.NUMBER_OF_QUADS]                
                 
@@ -287,7 +287,10 @@ class Agent:
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     next_augmented_total_states = self.augment_states_with_actions(next_total_states)
                 else:
-                    next_augmented_total_states = next_total_states.copy()
+                    next_augmented_total_states = np.asarray(next_total_states).copy()
+                
+                # All quad data is included, now append the runway state and save it to the total_state
+                next_augmented_total_states = np.concatenate([next_augmented_total_states, np.tile(next_runway_state.reshape(-1),(Settings.NUMBER_OF_QUADS,1))], axis = 1)
 
                 if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
                     raw_total_state_log.append(next_augmented_total_states.copy())

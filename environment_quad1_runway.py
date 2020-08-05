@@ -95,8 +95,8 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         if self.INDOORS:
-            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -0.0001/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  0.0001/1.0]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -3., -3.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 3.,  self.RUNWAY_WIDTH + 3.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
         else:            
@@ -113,12 +113,12 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   0 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   0 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
-        self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
+        self.SKIP_FAILED_ANIMATIONS           = False # Error the program or skip when animations fail?
 
         # Test time properties
         self.TEST_ON_DYNAMICS                 = True # Whether or not to use full dynamics along with a PD controller at test time
@@ -142,8 +142,8 @@ class Environment:
         self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
         if self.INDOORS:  
             self.VELOCITY_LIMIT                   = 4 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap        
-            self.MINIMUM_CAMERA_ALTITUDE          = 2 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
-            self.MAXIMUM_CAMERA_ALTITUDE          = 4 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
+            self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
+            self.MAXIMUM_CAMERA_ALTITUDE          = 10 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
             self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
             self.PROXIMITY_PENALTY_FACTOR         = 0.43 # how much the penalty decays with distance -> a penalty of 0.01 when they are 2 m apart. To change: = -distance/ln(desired_penalty)
         

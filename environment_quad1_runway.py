@@ -81,7 +81,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = True # True = indoors; False = outdoors
         if self.INDOORS:
@@ -95,8 +95,8 @@ class Environment:
         self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
         if self.INDOORS:
-            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -0.0001/1.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  0.0001/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -3., -3.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 3.,  self.RUNWAY_WIDTH + 3.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
         else:            

@@ -230,7 +230,7 @@ class Agent:
             if Settings.NORMALIZE_STATE:
                 total_augmented_states = (total_augmented_states - Settings.STATE_MEAN)/Settings.STATE_HALF_RANGE
 
-            # Discarding irrelevant states to obtain the observation
+            # Discarding irrelevant states to obtain the observation            
             observations = np.delete(total_augmented_states, Settings.IRRELEVANT_STATES, axis = 1)
 
             # Resetting items for this episode
@@ -263,8 +263,9 @@ class Agent:
                 ################################################
                 #### Step the dynamics forward one timestep ####
                 ################################################
+                # Padding the actions with zeros to ensure to altitude command is issued                
                 # Send the action to the environment process
-                self.agent_to_env.put((actions,))
+                self.agent_to_env.put((np.concatenate([actions, np.zeros([Settings.NUMBER_OF_QUADS,1])], axis = 1),))
 
                 # Receive results from stepped environment
                 next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get()

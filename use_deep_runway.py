@@ -208,6 +208,13 @@ def main():
                 
                 # Get each quad to accelerate appropriately
                 for j in range(Settings.NUMBER_OF_QUADS):
+                    
+                    if quad_positions[j,2] < 2.5:
+                        average_deep_guidance[j,2] = 0.1
+                        deep_guidance[j,2] = 0.1
+                    elif quad_positions[j,2] > 3.5:
+                        average_deep_guidance[j,2] = -0.1
+                        deep_guidance[j,2] = -0.1
                     #g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -average_deep_guidance[j,2], quad_id = j + 1) # Averaged
                     g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -deep_guidance[j,2], quad_id = j + 1) # Raw
                     #g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = 0, quad_id = j + 1) # Raw

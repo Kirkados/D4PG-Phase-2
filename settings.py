@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'runway_2quads_delay1_with_altitude' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'no_altitude_indoor_runway_2quad_delay3' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -125,13 +125,17 @@ class Settings:
     N_STEP_RETURN                    = env.N_STEP_RETURN
     TIMESTEP                         = env.TIMESTEP
     MAX_NUMBER_OF_TIMESTEPS          = env.MAX_NUMBER_OF_TIMESTEPS # per episode
-    IRRELEVANT_STATES                = env.IRRELEVANT_STATES.copy() # note: copy() is required or else there will only be one list with two references to it.
+    NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
+    irrelevant_states = []
+    for i in range(NUMBER_OF_QUADS):
+        for irrelevant_state in env.IRRELEVANT_STATES:
+            irrelevant_states.append(i * 6 + irrelevant_state)
+    IRRELEVANT_STATES = np.asarray(irrelevant_states)
     TEST_ON_DYNAMICS                 = env.TEST_ON_DYNAMICS
     KINEMATIC_NOISE                  = env.KINEMATIC_NOISE
     TOTAL_STATE_SIZE                 = env.TOTAL_STATE_SIZE
     AUGMENT_STATE_WITH_ACTION_LENGTH = env.AUGMENT_STATE_WITH_ACTION_LENGTH
     VELOCITY_LIMIT                   = env.VELOCITY_LIMIT
-    NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
     RUNWAY_LENGTH_ELEMENTS           = env.RUNWAY_LENGTH_ELEMENTS
     RUNWAY_WIDTH_ELEMENTS            = env.RUNWAY_WIDTH_ELEMENTS
     RUNWAY_LENGTH                    = env.RUNWAY_LENGTH

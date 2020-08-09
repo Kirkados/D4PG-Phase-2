@@ -92,16 +92,16 @@ class Environment:
             self.RUNWAY_LENGTH                    = 124 # [m] in X (North)        
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
-        self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
-        self.ACTION_SIZE                      = 3 # [my_x_dot_dot, my_y_dot_dot, my_z_dot_dot]
+        self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network
+        self.ACTION_SIZE                      = 2 # [my_x_dot_dot, my_y_dot_dot]
         if self.INDOORS:
-            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0/1.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -3., -3.,   0., -4., -4., -4.]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 3.,  self.RUNWAY_WIDTH + 3.,  10.,  4.,  4.,  4.]) # [m, m, m, m/s, m/s, m/s]
         else:            
-            self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10., -10.,   0., -10., -10., -10.]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  self.RUNWAY_LENGTH + 10.,  self.RUNWAY_WIDTH + 10.,  20.,  10.,  10.,  10.]) # [m, m, m, m/s, m/s, m/s]
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
@@ -113,8 +113,8 @@ class Environment:
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
@@ -160,7 +160,7 @@ class Environment:
         self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
         self.LOWER_STATE_BOUND                = np.concatenate([np.tile(self.LOWER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.zeros(self.RUNWAY_STATE_SIZE)]) # lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
-        self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
+        self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES)*self.NUMBER_OF_QUADS # the size of the observation input to the policy
 
     ###################################
     ##### Seeding the environment #####
@@ -199,7 +199,7 @@ class Environment:
         
         # Initializing the previous velocity and control effort for the integral-acceleration controller
         self.previous_quad_velocities = np.zeros([self.NUMBER_OF_QUADS, len(self.INITIAL_QUAD_POSITION)])
-        self.previous_linear_control_efforts = np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE])        
+        self.previous_linear_control_efforts = np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE + 1])        
         
         if use_dynamics:            
             self.dynamics_flag = True # for this episode, dynamics will be used
@@ -217,7 +217,7 @@ class Environment:
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE]), False)
+                self.action_delay_queue.put(np.zeros([self.NUMBER_OF_QUADS, self.ACTION_SIZE + 1]), False)
 
     #####################################
     ##### Step the Dynamics forward #####
@@ -266,7 +266,7 @@ class Environment:
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
         self.time += self.TIMESTEP
-        
+                
         # Update the state of the runway
         self.check_runway()
 
@@ -436,7 +436,7 @@ class Environment:
                 
                 ################################
                 ##### Step the environment #####
-                ################################                
+                ################################    
                 rewards, done = self.step(actions)
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
@@ -461,10 +461,10 @@ def kinematics_equations_of_motion(state, t, parameters):
     quad_velocities = state[NUMBER_OF_QUADS*QUAD_POSITION_LENGTH:]
     
     # Flattening the accelerations into a column
-    accelerations = actions.reshape(-1) # [x_dot_dot, y_dot_dot, z_dot_dot, x_dot_dot, y_dot_dot....]
+    accelerations = actions.reshape(-1) # [x_dot_dot, y_dot_dot, x_dot_dot, y_dot_dot....]
 
     # Building the derivative matrix.
-    derivatives = np.concatenate([quad_velocities, accelerations]) #.squeeze()?
+    derivatives = np.concatenate([quad_velocities, accelerations])
 
     return derivatives
 

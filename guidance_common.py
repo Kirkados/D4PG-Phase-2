@@ -30,15 +30,14 @@ class Rotorcraft:
         self.timeout = 0
 
 class Guidance(object):
-    def __init__(self, verbose=False, interface=None, target_id=None, follower_id=None, third_id = None, fourth_id = None):
+    def __init__(self, verbose=False, interface=None, quad_ids = None):
         self.verbose = verbose
         self.step = 0.2 # 5 Hz
         self._interface = interface
         self.auto2_index = None
-        self.target_id = target_id
-        self.follower_id = follower_id
-        self.ac_id = self.follower_id
-        self.ids = [target_id, follower_id, third_id, fourth_id]
+        self.ac_id = 1
+        self.ids = quad_ids
+        print(self.ids)
         self.ap_mode = None
         self.rotorcrafts = [Rotorcraft(i) for i in self.ids]
 
@@ -235,7 +234,7 @@ class Guidance(object):
         print("move at vel body: %s" % msg)
         self._interface.send_raw_datalink(msg)
 
-    def accelerate(self, north=0.0, east=0.0, down=0.0, quad_id = 2):
+    def accelerate(self, north=0.0, east=0.0, down=0.0, quad_id = None):
         msg = PprzMessage("datalink", "DESIRED_SETPOINT")
         msg['ac_id'] = quad_id
         msg['flag'] = 1 # full 3D

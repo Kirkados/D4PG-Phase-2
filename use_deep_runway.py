@@ -25,28 +25,12 @@ from guidance_common import Rotorcraft , Guidance
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Guided mode example")
-    parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
-    parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
-    
-    
-    
-    
-    # TODO
-    parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
-    parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
+    parser.add_argument('-ids','--quad_ids', action='append', help='<Required> IDs of all quads used', required=True)
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None
-    all_ids = args.all_ids
-    target_id = args.target_id
-    follower_id = args.follower_id
-    
-    # TODO
-    target_id = args.target_id
-    follower_id = args.follower_id
-    
-    
+    all_ids = args.quad_ids    
     
     log_filename = args.log_filename
     max_duration = 100000
@@ -83,9 +67,7 @@ def main():
 
         try:
             start_time = time.time()
-            all_ids = [1,2,,6,3,2]
-            g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id, third_id = third_id, fourth_id = fourth_id)
-            g = Guidance(interface=interface, all_ids =all_ids)
+            g = Guidance(interface=interface, quad_ids = all_ids)
             sleep(0.1)
             # g.set_guided_mode()
             sleep(0.2)
@@ -102,8 +84,10 @@ def main():
                 for j in range(Settings.AUGMENT_STATE_WITH_ACTION_LENGTH):
                     past_actions.put(np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE]), False)
             
+            # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
-            last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
+            last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
+            altitude_acceleration_command = np.zeros(Settings.NUMBER_OF_QUADS)
                 
             while True:
                 # TODO: make better frequency managing
@@ -113,31 +97,27 @@ def main():
                 # Initializing quadrotor positions and velocities
                 quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 
                 quad_velocities = np.zeros([Settings.NUMBER_OF_QUADS, 3])
+                
+                quad_number_not_id = 0
                 for rc in g.rotorcrafts:
-                    rc.timeout = rc.timeout + g.step
-                    
+                    print("Here")
+                    rc.timeout = rc.timeout + g.step                    
                     
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
                                           chaser_x_dot, chaser_y_dot, chaser_z_dot, (optional past action data)] 
                     """
 
-                    quad_number = rc.id - 1
-                    element_number = 0
-                    for quad_number in g.ids:
-                        print(quad_number)
-
-                        # Extracting position
-                        quad_positions[ quad_number, 0] =  rc.X[0]
-                        quad_positions[ quad_number, 1] = -rc.X[1]
-                        quad_positions[ quad_number, 2] =  rc.X[2]
-                        
-                        # Extracting velocity
-                        quad_velocities[quad_number, 0] =  rc.V[0]
-                        quad_velocities[quad_number, 1] = -rc.V[1]
-                        quad_velocities[quad_number, 2] =  rc.V[2]
-    
+                    # Extracting position
+                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]
+                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]
+                    quad_positions[ quad_number_not_id, 2] =  rc.X[2]
                     
-                        element_number += 1
+                    # Extracting velocity
+                    quad_velocities[quad_number_not_id, 0] =  rc.V[0]
+                    quad_velocities[quad_number_not_id, 1] = -rc.V[1]
+                    quad_velocities[quad_number_not_id, 2] =  rc.V[2]
+                
+                    quad_number_not_id += 1
                 
                 # Check runway state
                 # The size of each runway grid element
@@ -180,7 +160,7 @@ def main():
                     
                     # All quad data is included, now append the runway state and save it to the total_state
                     total_states.append(this_quads_state)
-                    
+                print(total_states)
                     
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
@@ -216,33 +196,28 @@ def main():
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
                 for j in range(Settings.NUMBER_OF_QUADS):              
-                    deep_guidance[j,(np.abs(quad_velocities[j,:]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,:]))] = 0 
+                    deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))] = 0 
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
                 last_runway_state = np.copy(runway_state)
-                #last_runway_state = runway_state
-                
-                # Send velocity/acceleration command to aircraft!
-                #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 
                 # Get each quad to accelerate appropriately
                 for j in range(Settings.NUMBER_OF_QUADS):
                     
                     if quad_positions[j,2] < 2.5:
-                        average_deep_guidance[j,2] = 0.1
-                        deep_guidance[j,2] = 0.1
+                        altitude_acceleration_command[j] =  0.1
                     elif quad_positions[j,2] > 3.5:
-                        average_deep_guidance[j,2] = -0.1
-                        deep_guidance[j,2] = -0.1
-                    #g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -average_deep_guidance[j,2], quad_id = j + 1) # Averaged
-                    g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -deep_guidance[j,2], quad_id = j + 1) # Raw
-                    #g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = 0, quad_id = j + 1) # Raw
+                        altitude_acceleration_command[j] = -0.1
+                    else:
+                        altitude_acceleration_command[j] =  0.0
+                    print(average_deep_guidance)
+                    g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = deep_guidance.reshape(-1)
+                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), altitude_acceleration_command])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
                 log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1

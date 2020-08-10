@@ -27,12 +27,27 @@ def main():
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
+    
+    
+    
+    
+    # TODO
+    parser.add_argument("-ti", "--target_id", dest='target_id', default=0, type=int, help="Target aircraft ID")
+    parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None
+    all_ids = args.all_ids
     target_id = args.target_id
     follower_id = args.follower_id
+    
+    # TODO
+    target_id = args.target_id
+    follower_id = args.follower_id
+    
+    
+    
     log_filename = args.log_filename
     max_duration = 100000
     log_placeholder = np.zeros((max_duration, 100))
@@ -68,7 +83,9 @@ def main():
 
         try:
             start_time = time.time()
-            g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
+            all_ids = [1,2,,6,3,2]
+            g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id, third_id = third_id, fourth_id = fourth_id)
+            g = Guidance(interface=interface, all_ids =all_ids)
             sleep(0.1)
             # g.set_guided_mode()
             sleep(0.2)
@@ -105,7 +122,10 @@ def main():
                     """
 
                     quad_number = rc.id - 1
-                    try:
+                    element_number = 0
+                    for quad_number in g.ids:
+                        print(quad_number)
+
                         # Extracting position
                         quad_positions[ quad_number, 0] =  rc.X[0]
                         quad_positions[ quad_number, 1] = -rc.X[1]
@@ -115,9 +135,9 @@ def main():
                         quad_velocities[quad_number, 0] =  rc.V[0]
                         quad_velocities[quad_number, 1] = -rc.V[1]
                         quad_velocities[quad_number, 2] =  rc.V[2]
-                    except:
-                        print("The quad IDs must start at 1 and increase from there!")
-                        raise SystemExit
+    
+                    
+                        element_number += 1
                 
                 # Check runway state
                 # The size of each runway grid element

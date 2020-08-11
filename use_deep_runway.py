@@ -18,19 +18,21 @@ from settings import Settings
 from build_neural_networks import BuildActorNetwork
 
 # Paparazzi guidance api
-from guidance_common import Rotorcraft , Guidance
+from guidance_common_temp import Rotorcraft , Guidance
 
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Guided mode example")
-    parser.add_argument('-ids','--quad_ids', action='append', help='<Required> IDs of all quads used', required=True)
+    parser.add_argument('-ids','--quad_ids', nargs='+', help='<Required> IDs of all quads used', required=True)
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     args = parser.parse_args()
 
     interface = None
-    all_ids = args.quad_ids    
+    
+    # converting this input from a list of strings to a list of ints
+    all_ids = list(map(int, args.quad_ids))
     
     log_filename = args.log_filename
     max_duration = 100000
@@ -100,7 +102,7 @@ def main():
                 
                 quad_number_not_id = 0
                 for rc in g.rotorcrafts:
-                    print("Here")
+                    
                     rc.timeout = rc.timeout + g.step                    
                     
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
@@ -116,7 +118,8 @@ def main():
                     quad_velocities[quad_number_not_id, 0] =  rc.V[0]
                     quad_velocities[quad_number_not_id, 1] = -rc.V[1]
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
-                
+                    
+                    print(rc.id, quad_positions)
                     quad_number_not_id += 1
                 
                 # Check runway state

@@ -34,8 +34,8 @@ class Settings:
 
     # Hyperparameters
     NUMBER_OF_ACTORS        = 10
-    NUMBER_OF_EPISODES      = 5e4 # that each agent will perform
-    MAX_TRAINING_ITERATIONS = 1e6 # of neural networks
+    NUMBER_OF_EPISODES      = 8e4 # that each agent will perform
+    MAX_TRAINING_ITERATIONS = 1.75e6 # of neural networks
     ACTOR_LEARNING_RATE     = 0.0001
     CRITIC_LEARNING_RATE    = 0.0001
     TARGET_NETWORK_TAU      = 0.001

@@ -206,12 +206,20 @@ def main():
                 # Get each quad to accelerate appropriately
                 for j in range(Settings.NUMBER_OF_QUADS):
                     
-                    if quad_positions[j,2] < 2.5:
-                        altitude_acceleration_command[j] =  0.1
-                    elif quad_positions[j,2] > 3.5:
-                        altitude_acceleration_command[j] = -0.1
-                    else:
-                        altitude_acceleration_command[j] =  0.0
+                    # Using a separate PD controller to command the altitude.
+                    # Each quad is assigned a different altitude to remain at.
+                    desired_altitude = 2 + j
+                    altitude_error = desired_altitude - quad_positions[j,2]
+                    velocity_error = 0.0 - quad_velocities[j,2]
+                    
+                    altitude_acceleration_command[j] = np.clip(0.5*altitude_error + 1.0*velocity_error,-0.1,0.1)
+                    
+#                    if quad_positions[j,2] < 1.5+j:
+#                        altitude_acceleration_command[j] =  0.1
+#                    elif quad_positions[j,2] > 2.5+j:
+#                        altitude_acceleration_command[j] = -0.1
+#                    else:
+#                        altitude_acceleration_command[j] =  0.0
                     g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
                 
                 # Log all input and outputs:

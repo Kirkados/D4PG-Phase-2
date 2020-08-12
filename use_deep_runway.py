@@ -18,7 +18,7 @@ from settings import Settings
 from build_neural_networks import BuildActorNetwork
 
 # Paparazzi guidance api
-from guidance_common_temp import Rotorcraft , Guidance
+from guidance_common import Rotorcraft , Guidance
 
 
 

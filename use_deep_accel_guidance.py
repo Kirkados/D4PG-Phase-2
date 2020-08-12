@@ -69,7 +69,7 @@ def main():
 
         try:
             start_time = time.time()
-            g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
+            g = Guidance(interface=interface, quad_ids=[target_id, follower_id])
             sleep(0.1)
             # g.set_guided_mode()
             sleep(0.2)
@@ -190,7 +190,6 @@ def main():
 
         except (KeyboardInterrupt, SystemExit):
             print('Shutting down...')
-            g.set_nav_mode()
             g.shutdown()
             sleep(0.2)
             with open(log_filename+".txt", 'wb') as f:

@@ -118,8 +118,7 @@ def main():
                     quad_velocities[quad_number_not_id, 0] =  rc.V[0]
                     quad_velocities[quad_number_not_id, 1] = -rc.V[1]
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
-                    
-                    print(rc.id, quad_positions)
+
                     quad_number_not_id += 1
                 
                 # Check runway state
@@ -163,7 +162,6 @@ def main():
                     
                     # All quad data is included, now append the runway state and save it to the total_state
                     total_states.append(this_quads_state)
-                print(total_states)
                     
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
@@ -214,7 +212,6 @@ def main():
                         altitude_acceleration_command[j] = -0.1
                     else:
                         altitude_acceleration_command[j] =  0.0
-                    print(average_deep_guidance)
                     g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
                 
                 # Log all input and outputs:
@@ -229,7 +226,6 @@ def main():
 
         except (KeyboardInterrupt, SystemExit):
             print('Shutting down...')
-            g.set_nav_mode()
             g.shutdown()
             sleep(0.2)
             print("Saving file as %s.txt..." %(log_filename))

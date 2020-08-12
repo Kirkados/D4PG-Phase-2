@@ -68,9 +68,9 @@ def main():
 
         try:
             start_time = time.time()
-            g = Guidance(interface=interface, target_id=target_id, follower_id=follower_id)
+            g = Guidance(interface=interface, quad_ids=[target_id, follower_id])
             sleep(0.1)
-            g.set_guided_mode()
+            g.set_guided_mode(quad_id = follower_id)
             sleep(0.2)
             last_target_yaw = 0.0
             
@@ -141,7 +141,7 @@ def main():
                     past_actions.put(deep_guidance)
                     
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
+                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], quad_id = follower_id)
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
                 
                 # Log all input and outputs:
@@ -157,7 +157,7 @@ def main():
 
         except (KeyboardInterrupt, SystemExit):
             print('Shutting down...')
-            g.set_nav_mode()
+            g.set_nav_mode(quad_id = follower_id)
             g.shutdown()
             sleep(0.2)
             with open(log_filename+".txt", 'wb') as f:

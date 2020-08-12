@@ -37,8 +37,6 @@ class Guidance(object):
         self.auto2_index = None                
         self.ac_id = quad_ids[0]
         self.ids = quad_ids
-        for i in quad_ids:
-            print(i)
         self.ap_mode = None
         self.rotorcrafts = [Rotorcraft(i) for i in quad_ids]
 
@@ -128,13 +126,13 @@ class Guidance(object):
     def __del__(self):
         self.shutdown()
 
-    def set_guided_mode(self):
+    def set_guided_mode(self, quad_id = None):
         """
         change mode to GUIDED.
         """
         if self.ap_mode is not None:
             msg = PprzMessage("ground", "DL_SETTING")
-            msg['ac_id'] = self.ac_id
+            msg['ac_id'] = quad_id
             msg['index'] = self.ap_mode.index
             try:
                 msg['value'] = self.ap_mode.ValueFromName('Guided')  # AP_MODE_GUIDED
@@ -146,13 +144,13 @@ class Guidance(object):
             print("Setting mode to GUIDED: %s" % msg)
             self._interface.send(msg)
 
-    def set_nav_mode(self):
+    def set_nav_mode(self, quad_id = None):
         """
         change mode to NAV.
         """
         if self.ap_mode is not None:
             msg = PprzMessage("ground", "DL_SETTING")
-            msg['ac_id'] = self.ac_id
+            msg['ac_id'] = quad_id
             msg['index'] = self.ap_mode.index
             try:
                 msg['value'] = self.ap_mode.ValueFromName('Nav')  # AP_MODE_NAV
@@ -207,12 +205,13 @@ class Guidance(object):
         print("goto body relative: %s" % msg)
         self._interface.send_raw_datalink(msg)
 
-    def move_at_ned_vel(self, north=0.0, east=0.0, down=0.0, yaw=0.0):
+    def move_at_ned_vel(self, north=0.0, east=0.0, down=0.0, yaw=0.0, quad_id = None):
         """
         move at specified velocity in meters/sec with absolute heading (if already in GUIDED mode)
         """
         msg = PprzMessage("datalink", "GUIDED_SETPOINT_NED")
-        msg['ac_id'] = self.ac_id
+        print(quad_id)
+        msg['ac_id'] = quad_id
         msg['flags'] = 0xE0
         msg['x'] = north
         msg['y'] = east

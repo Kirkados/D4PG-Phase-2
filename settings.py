@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = '5quads' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = '4quads_delay1' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -113,8 +113,8 @@ class Settings:
         env = environment_file.Environment()
         
     OBSERVATION_SIZE                 = env.OBSERVATION_SIZE + env.AUGMENT_STATE_WITH_ACTION_LENGTH*env.ACTION_SIZE # augmenting the state with past actions and states
-    UPPER_STATE_BOUND                = np.concatenate([env.UPPER_STATE_BOUND, np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])
-    LOWER_STATE_BOUND                = np.concatenate([env.LOWER_STATE_BOUND, np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH)])
+    UPPER_STATE_BOUND                = env.UPPER_STATE_BOUND
+    LOWER_STATE_BOUND                = env.LOWER_STATE_BOUND
     ACTION_SIZE                      = env.ACTION_SIZE
     LOWER_ACTION_BOUND               = env.LOWER_ACTION_BOUND
     UPPER_ACTION_BOUND               = env.UPPER_ACTION_BOUND

@@ -159,8 +159,8 @@ class Environment:
         # Performing some calculations  
         self.RUNWAY_STATE_SIZE                = self.RUNWAY_WIDTH_ELEMENTS * self.RUNWAY_LENGTH_ELEMENTS # how big the runway "grid" is                                                   
         self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
-        self.LOWER_STATE_BOUND                = np.concatenate([np.tile(self.LOWER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(env.LOWER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH), np.zeros(self.RUNWAY_STATE_SIZE)]) # lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(env.UPPER_ACTION_BOUND, env.AUGMENT_STATE_WITH_ACTION_LENGTH),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
+        self.LOWER_STATE_BOUND                = np.concatenate([np.tile(self.LOWER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(self.LOWER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH), np.zeros(self.RUNWAY_STATE_SIZE)]) # lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES)*self.NUMBER_OF_QUADS # the size of the observation input to the policy
 
     ###################################

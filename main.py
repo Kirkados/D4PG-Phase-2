@@ -358,12 +358,17 @@ with tf.Session(config = config) as sess:
                 print("Main.py (Environment %s) is using %2.3f GB of RAM and the buffer has %i samples" %(Settings.RUN_NAME, process.memory_info().rss/1000000000.0, replay_buffer.how_filled()))
             counter += 1
 
-                
-
-            # If all threads have ended on their own
-            if not any(each_thread.is_alive() for each_thread in threads):
+            # If all agents have finished, gracefully stop the learner and end
+            if np.sum(each_thread.is_alive() for each_thread in threads) <= 1:
                 print("All threads ended naturally.")
+                
+                # Gracefully stop learner
+                stop_run_flag.set()
+                # Join threads (suspends main.py until threads finish)
+                for each_thread in threads:
+                    each_thread.join()
                 break
+            
     except KeyboardInterrupt: # if someone pressed Ctrl + C
         print("Interrupted by user!")
         print("Stopping all the threads!!")

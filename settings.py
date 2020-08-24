@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'test' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'better_stopping_2quad_delay1' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -34,8 +34,8 @@ class Settings:
 
     # Hyperparameters
     NUMBER_OF_ACTORS        = 10
-    NUMBER_OF_EPISODES      = 10# 8e4 # that each agent will perform
-    MAX_TRAINING_ITERATIONS = 1.75e6 # of neural networks
+    NUMBER_OF_EPISODES      = 8e4 # that each agent will perform
+    MAX_TRAINING_ITERATIONS = 1e8 # of neural networks
     ACTOR_LEARNING_RATE     = 0.0001
     CRITIC_LEARNING_RATE    = 0.0001
     TARGET_NETWORK_TAU      = 0.001

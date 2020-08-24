@@ -27,6 +27,7 @@ def main():
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument('-ids','--quad_ids', nargs='+', help='<Required> IDs of all quads used', required=True)
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
+    parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
 
     interface = None
@@ -38,6 +39,13 @@ def main():
     max_duration = 100000
     log_placeholder = np.zeros((max_duration, 100))
     i = 0 # for log increment
+    
+    # Flag to not average the guidance output
+    dont_average_output = args.dont_average_output
+    if dont_average_output:
+        print("\n\nDeep guidance output is NOT averaged\n\n")
+    else:
+        print("\n\nDeep guidance output is averaged\n\n")
     
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
@@ -220,7 +228,10 @@ def main():
 #                        altitude_acceleration_command[j] = -0.1
 #                    else:
 #                        altitude_acceleration_command[j] =  0.0
-                    g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
+                    if dont_average_output:
+                        g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j])
+                    else:
+                        g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
                 
                 # Log all input and outputs:
                 t = time.time()-start_time

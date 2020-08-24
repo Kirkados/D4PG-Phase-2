@@ -6,11 +6,10 @@ import pdb
 def plot_data(data):
     fig = plt.figure(figsize=(15,7))
     t = data[:,0]
-    plt.subplot(311)
+    plt.subplot(511)
     plt.plot(t,data[:,1], alpha=0.7, label='Deep Guidance X')
     plt.plot(t,data[:,2], alpha=0.7, label='Deep Guidance Y')
     plt.plot(t,data[:,3], alpha=0.7, label='Deep Guidance Z')
-    plt.plot(t,data[:,4], alpha=0.7, label='Z')
     plt.grid();plt.legend()
 
 
@@ -23,20 +22,21 @@ def plot_data(data):
     # plt.grid();plt.legend()
 
 
-    plt.subplot(312)
-    plt.plot(t,data[:,9],  '--b', alpha=0.7, label='Target X')
-    plt.plot(t,data[:,10], '--r', alpha=0.7, label='Y')
-    plt.plot(t,data[:,11], '--g', alpha=0.7, label='Z')
-    plt.plot(t,data[:,5],  'b', alpha=0.7, label='Follower X')
-    plt.plot(t,data[:,6],  'r', alpha=0.7, label='Y')
-    plt.plot(t,data[:,7],  'g', alpha=0.7, label='Z')
+    plt.subplot(512)
+    plt.plot(t,data[:,4],  '--b', alpha=0.7, label='X')
+    plt.plot(t,data[:,5], '--r', alpha=0.7, label='Y')
+#    plt.plot(t,data[:,6], '--g', alpha=0.7, label='Z')
+#    plt.plot(t,data[:,],  'b', alpha=0.7, label='Follower X')
+#    plt.plot(t,data[:,6],  'r', alpha=0.7, label='Y')
+#    plt.plot(t,data[:,7],  'g', alpha=0.7, label='Z')
     plt.grid();plt.legend()
 
-    plt.subplot(313)
-    plt.plot(t,data[:,5], alpha=0.7, label='Smoothed guidance X')
-    plt.plot(t,data[:,6], alpha=0.7, label='Smoothed guidance Y')
-    plt.plot(t,data[:,7], alpha=0.7, label='Smoothed guidance Z')
+    plt.subplot(513)
+    plt.plot(t,data[:,6], alpha=0.7, label='Vx')
+    plt.plot(t,data[:,7], alpha=0.7, label='Vy')
+#    plt.plot(t,data[:,7], alpha=0.7, label='Vz')
     plt.grid();plt.legend()
+    
 
     # plt.subplot(313)
     # plt.plot(t,data[:,9], alpha=0.7, label='Target X')
@@ -44,17 +44,14 @@ def plot_data(data):
     # plt.plot(t,data[:,11], alpha=0.7, label='Z')
     # plt.grid();plt.legend()
 
-    # plt.subplot(411)
-    # plt.plot(data[:,22],label='Lift', alpha=0.3)
-    # plt.plot(data[:,23],label='Drag', alpha=0.3)
-    # plt.plot(data[:,13],label='Filtered Lift')
-    # plt.plot(data[:,14],label='Filtered Drag')
-    # plt.grid();plt.legend()
+    plt.subplot(514)
+    plt.plot(data[:,8:13],label='past_actions', alpha=0.3)
+    plt.grid();plt.legend()
     
-    # plt.subplot(412)
-    # plt.plot(data[:,20]*100, label='Throttle err x100')
-    # plt.plot(data[:,18]*57.3, label='Pitch err')
-    # plt.ylim([-100,100])
+    plt.subplot(515)
+    plt.plot(data[:,14:], label='runway_state', alpha = 0.3)
+    plt.grid()#;plt.legend()
+
     
     
     # plt.grid();plt.legend()

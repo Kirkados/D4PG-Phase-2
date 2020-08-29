@@ -130,6 +130,7 @@ class Settings:
     for i in range(NUMBER_OF_QUADS):
         for irrelevant_state in env.IRRELEVANT_STATES:
             irrelevant_states.append(i * 6 + irrelevant_state)
+    print(irrelevant_states)
     IRRELEVANT_STATES = np.asarray(irrelevant_states)
     TEST_ON_DYNAMICS                 = env.TEST_ON_DYNAMICS
     KINEMATIC_NOISE                  = env.KINEMATIC_NOISE

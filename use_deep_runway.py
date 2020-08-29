@@ -37,7 +37,7 @@ def main():
     
     log_filename = args.log_filename
     max_duration = 100000
-    log_placeholder = np.zeros((max_duration, 100))
+    log_placeholder = np.zeros((max_duration, 3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE))
     i = 0 # for log increment
     
     # Flag to not average the guidance output
@@ -179,7 +179,7 @@ def main():
                     # The past_action_data is of shape [Settings.AUGMENT_STATE_WITH_ACTION_LENGTH, Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
                     # I swap the first and second axes so that I can reshape it properly
             
-                    past_action_data = np.swapaxes(np.asarray(past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad     
+                    past_action_data = np.swapaxes(np.asarray(past_actions.queue),0,1).reshape([Settings.NUMBER_OF_QUADS, -1]) # past actions reshaped into rows for each quad    
                     total_states = np.concatenate([np.asarray(total_states), past_action_data], axis = 1)
             
                     # Remove the oldest entry from the action log queue

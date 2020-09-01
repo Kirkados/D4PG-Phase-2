@@ -16,9 +16,9 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'better_stopping_1quad_delay3' # use just the name. If trying to restore from file, use name along with timestamp
-    ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
-    AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
+    RUN_NAME               = 'TEMP' # use just the name. If trying to restore from file, use name along with timestamp
+    ENVIRONMENT            = 'quad1_accel' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
+    AGENT                  = '' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
     VIDEO_RECORD_FREQUENCY = 20 # 20 Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
@@ -130,7 +130,6 @@ class Settings:
     for i in range(NUMBER_OF_QUADS):
         for irrelevant_state in env.IRRELEVANT_STATES:
             irrelevant_states.append(i * 6 + irrelevant_state)
-    print(irrelevant_states)
     IRRELEVANT_STATES = np.asarray(irrelevant_states)
     TEST_ON_DYNAMICS                 = env.TEST_ON_DYNAMICS
     KINEMATIC_NOISE                  = env.KINEMATIC_NOISE

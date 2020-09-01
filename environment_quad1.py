@@ -93,8 +93,8 @@ class Environment:
         self.N_STEP_RETURN                    =   1
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   1 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   1 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   4 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   4 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
@@ -145,6 +145,21 @@ class Environment:
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
         self.VELOCITY_PENALTY         = [1.5, 1.5, 1.5] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
         self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
+        
+        self.LOWER_STATE_BOUND        = np.concatenate([self.LOWER_STATE_BOUND, np.tile(self.LOWER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND        = np.concatenate([self.UPPER_STATE_BOUND, np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # upper bound for each element of TOTAL_STATE        
+        self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy        
+        
+        # These need to be defined but are not used
+        self.NUMBER_OF_QUADS         = 1
+        self.RUNWAY_WIDTH            = 0
+        self.RUNWAY_LENGTH           = 0
+        self.RUNWAY_WIDTH_ELEMENTS   = 0
+        self.RUNWAY_LENGTH_ELEMENTS  = 0
+        self.MINIMUM_CAMERA_ALTITUDE = 0
+        self.MAXIMUM_CAMERA_ALTITUDE = 0
+        
+        
 
     ###################################
     ##### Seeding the environment #####

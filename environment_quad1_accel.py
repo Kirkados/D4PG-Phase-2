@@ -167,7 +167,11 @@ class Environment:
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
         self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
         self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
-        
+
+
+        self.LOWER_STATE_BOUND        = np.concatenate([self.LOWER_STATE_BOUND, np.tile(self.LOWER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND        = np.concatenate([self.UPPER_STATE_BOUND, np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # upper bound for each element of TOTAL_STATE        
+        self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
 
         # These need to be defined but are not used
         self.NUMBER_OF_QUADS         = 1
@@ -176,6 +180,7 @@ class Environment:
         self.RUNWAY_WIDTH_ELEMENTS   = 0
         self.RUNWAY_LENGTH_ELEMENTS  = 0
         self.MINIMUM_CAMERA_ALTITUDE = 0
+        self.MAXIMUM_CAMERA_ALTITUDE = 0
 
     ###################################
     ##### Seeding the environment #####

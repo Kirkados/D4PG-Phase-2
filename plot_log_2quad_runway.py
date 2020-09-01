@@ -27,10 +27,10 @@ def plot_data(data):
 
     # Plotting velocities
     plt.subplot(513)
-    plt.plot(t,data[:,9],  '--b', alpha=0.7, label='Quad1_Vx')
-    plt.plot(t,data[:,10], '--r', alpha=0.7, label='Quad1_Vy')
-    plt.plot(t,data[:,13], '-b',  alpha=0.7, label='Quad2_Vx')
-    plt.plot(t,data[:,14], '-r',  alpha=0.7, label='Quad2_Vy')
+    plt.plot(t,data[:,9],  '-b', alpha=0.7, label='Quad1_Vx')
+    plt.plot(t,data[:,10], '-r', alpha=0.7, label='Quad1_Vy')
+    plt.plot(t,data[:,13], '--b',  alpha=0.7, label='Quad2_Vx')
+    plt.plot(t,data[:,14], '--r',  alpha=0.7, label='Quad2_Vy')
     plt.grid();plt.legend()
 
     # plotting 3 past actions 

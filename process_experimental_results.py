@@ -12,13 +12,14 @@ import matplotlib.pyplot as plt
 FOLLOWER_ID = 2
 TARGET_ID = 1
 INS_FACTOR = 0.0039063
-input_filename = "20_08_20__14_47_12.data"
-follower_output_filename = "processed_follower_experimental_results.txt"
-target_output_filename = "processed_target_experimental_results.txt"
+input_filename = "20_09_04__13_36_32.data"
+follower_output_filename = "test_follower.txt"
+target_output_filename = "test_target.txt"
+norm_error_output_filename = "norm.txt"
 
 # start and end times for the data written to file ONLY
-START_TIME = 230
-END_TIME = 270
+START_TIME = 0
+END_TIME = 270000
 
 # Load in .data file
 parsed_data = []
@@ -50,11 +51,12 @@ for i in range(len(parsed_data)):
 follower_positions = np.asarray(follower_positions)
 follower_times = np.asarray(follower_times)
 
-
-
 target_positions = np.asarray(target_positions)
 target_times = np.asarray(target_times)
 
+# Adjust to make both arrays have the same length
+norm_error = np.linalg.norm(follower_positions - target_positions[0:-1,:], axis = 1)
+all_norm_error_data = np.concatenate[follower_times.reshape([-1,1]), norm_error.reshape([-1,1])]
 
 # Reshape the data
 all_follower_data = np.concatenate([follower_times.reshape([-1,1]) - START_TIME,follower_positions], axis = 1)
@@ -69,6 +71,9 @@ axes.plot(follower_times,follower_positions,label={"X","Y","Z"})
 #plt.legend()
 axes.plot(target_times,target_positions)
 
+fig2, axes2 = plt.subplots()
+axes2.plot(follower_times,norm_error)
+
 # Writing the processed data to a file
 with open(follower_output_filename,'w') as file_to_write:
     #for row in follower_positions:
@@ -78,3 +83,8 @@ with open(follower_output_filename,'w') as file_to_write:
 with open(target_output_filename,'w') as file_to_write:
     #for row in follower_positions:
     np.savetxt(file_to_write, all_target_data)
+    
+# Writing the processed data to a file
+with open(norm_error_output_filename,'w') as file_to_write:
+    #for row in follower_positions:
+    np.savetxt(file_to_write, all_norm_error_data)

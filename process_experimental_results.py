@@ -56,7 +56,7 @@ target_times = np.asarray(target_times)
 
 # Adjust to make both arrays have the same length
 norm_error = np.linalg.norm(follower_positions - target_positions[0:-1,:], axis = 1)
-all_norm_error_data = np.concatenate[follower_times.reshape([-1,1]), norm_error.reshape([-1,1])]
+all_norm_error_data = np.concatenate([follower_times.reshape([-1,1]), norm_error.reshape([-1,1])])
 
 # Reshape the data
 all_follower_data = np.concatenate([follower_times.reshape([-1,1]) - START_TIME,follower_positions], axis = 1)

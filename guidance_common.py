@@ -210,14 +210,13 @@ class Guidance(object):
         move at specified velocity in meters/sec with absolute heading (if already in GUIDED mode)
         """
         msg = PprzMessage("datalink", "GUIDED_SETPOINT_NED")
-        print(quad_id)
         msg['ac_id'] = quad_id
         msg['flags'] = 0xE0
         msg['x'] = north
         msg['y'] = east
         msg['z'] = down
         msg['yaw'] = yaw
-        print("move at vel NED: %s" % msg)
+        #print("move at vel NED: %s" % msg)
         self._interface.send_raw_datalink(msg)
 
     def move_at_body_vel(self, forward=0.0, right=0.0, down=0.0, yaw=0.0):

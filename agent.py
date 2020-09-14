@@ -295,9 +295,10 @@ class Agent:
 
                     # Dump data into large replay buffer
                     # If the prioritized replay buffer is currently dumping data,
-                    # wait until that is done before adding more data to the buffer
-                    replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
-                    self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
+                    # wait until that is done before adding more data to the buffer                    
+                    if not test_time:
+                        replay_buffer_dump_flag.wait() # blocks until replay_buffer_dump_flag is True
+                        self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
 
                     # If this episode is being rendered, log the state for rendering later
                     if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':
@@ -331,8 +332,9 @@ class Agent:
                             discount_factor *= Settings.DISCOUNT_FACTOR # for the next step, gamma**(i+1)
 
                         # dump data into large replay buffer
-                        replay_buffer_dump_flag.wait()
-                        self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
+                        if not test_time:
+                            replay_buffer_dump_flag.wait()
+                            self.replay_buffer.add((observation_0, action_0, n_step_reward, next_observation, done, discount_factor))
 
                         # If this episode is being rendered, log the state for rendering later
                         if self.n_agent == 1 and Settings.RECORD_VIDEO and (episode_number % (Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES*Settings.VIDEO_RECORD_FREQUENCY) == 0 or episode_number == 1) and not Settings.ENVIRONMENT == 'gym':

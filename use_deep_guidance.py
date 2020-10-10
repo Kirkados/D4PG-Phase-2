@@ -37,6 +37,8 @@ def main():
     log_placeholder = np.zeros((max_duration, 30))
     i=0 # for log increment
     
+    timestep = Settings.TIMESTEP
+    
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
 
@@ -84,11 +86,11 @@ def main():
                     
             while True:
                 # TODO: make better frequency managing
-                sleep(g.step)
+                sleep(timestep)
                 # print('G IDS : ',g.ids) # debug....
                 policy_input = np.zeros(Settings.TOTAL_STATE_SIZE) # initializing policy input
                 for rc in g.rotorcrafts:
-                    rc.timeout = rc.timeout + g.step
+                    rc.timeout = rc.timeout + timestep
                     # print('rc.id',rc.id)
                     #print('rc.W',rc.W)  # example to see the positions, or you can get the velocities as well...
                     if rc.id == target_id: # we've found the target

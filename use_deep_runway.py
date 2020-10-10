@@ -47,6 +47,8 @@ def main():
     else:
         print("\n\nDeep guidance output is averaged\n\n")
     
+    timestep = Settings.TIMESTEP
+    
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
 
@@ -101,8 +103,8 @@ def main():
                 
             while True:
                 # TODO: make better frequency managing
-                sleep(g.step)
-                total_time = total_time + g.step
+                sleep(timestep)
+                total_time = total_time + timestep
                 
                 # Initializing quadrotor positions and velocities
                 quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 
@@ -111,7 +113,7 @@ def main():
                 quad_number_not_id = 0
                 for rc in g.rotorcrafts:
                     
-                    rc.timeout = rc.timeout + g.step                    
+                    rc.timeout = rc.timeout + timestep                    
                     
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
                                           chaser_x_dot, chaser_y_dot, chaser_z_dot, (optional past action data)] 

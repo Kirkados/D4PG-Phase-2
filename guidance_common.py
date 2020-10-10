@@ -32,7 +32,6 @@ class Rotorcraft:
 class Guidance(object):
     def __init__(self, verbose=False, interface=None, quad_ids = None):
         self.verbose = verbose
-        self.step = 0.2 # 5 Hz
         self._interface = interface
         self.auto2_index = None                
         self.ac_id = quad_ids[0]

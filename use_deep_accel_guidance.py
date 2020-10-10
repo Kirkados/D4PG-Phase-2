@@ -47,6 +47,8 @@ def main():
     else:
         print("\n\nDeep guidance output is averaged\n\n")
     
+    timestep = Settings.TIMESTEP
+    
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
 
@@ -96,12 +98,12 @@ def main():
                 
             while True:
                 # TODO: make better frequency managing
-                sleep(g.step)
-                total_time = total_time + g.step
+                sleep(timestep)
+                total_time = total_time + timestep
                 # print('G IDS : ',g.ids) # debug....
                 policy_input = np.zeros(Settings.TOTAL_STATE_SIZE) # initializing policy input
                 for rc in g.rotorcrafts:
-                    rc.timeout = rc.timeout + g.step
+                    rc.timeout = rc.timeout + timestep
                     
                     
                     """ policy_input is: [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 

@@ -28,6 +28,7 @@ def main():
     parser.add_argument("-fi", "--follower_id", dest='follower_id', default=0, type=int, help="Follower aircraft ID")
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_accel_000', type=str, help="Log file name")
     parser.add_argument("-d", "--deadband", dest='deadband_radius', default='0.0', type=float, help="deadband radius")
+    parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
 
     interface = None
@@ -38,6 +39,13 @@ def main():
     max_duration = 100000
     log_placeholder = np.zeros((max_duration, 30))
     i=0 # for log increment
+    
+    # Flag to not average the guidance output
+    dont_average_output = args.dont_average_output
+    if dont_average_output:
+        print("\n\nDeep guidance output is NOT averaged\n\n")
+    else:
+        print("\n\nDeep guidance output is averaged\n\n")
     
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
@@ -172,7 +180,13 @@ def main():
                 
                 # Send velocity/acceleration command to aircraft!
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
-                g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id)
+                
+                if dont_average_output:
+                    g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], quad_id = follower_id)
+                else:
+                    g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id) # Averaged 
+                
+                #g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id)
                 #g.accelerate(north = 1, east = 0.1, down = 0)
                 
                 print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f Guidance_X: %.2f, Y: %.2f, Z: %.2f" %(policy_input[0], policy_input[1], policy_input[2], policy_input[7], policy_input[8], policy_input[9], average_deep_guidance[0], average_deep_guidance[1], average_deep_guidance[2]))                

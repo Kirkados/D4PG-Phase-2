@@ -127,7 +127,7 @@ class Environment:
         self.FORCE_NOISE_AT_TEST_TIME         = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KI                               = 10.0 # Integral gain for the integral-linear acceleration controller
+        self.KI                               = 0.5 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
         self.LENGTH                           = 0.3  # [m] side length

@@ -70,6 +70,7 @@ class Guidance(object):
                 rc.initialized = True
         # self._interface.subscribe(ins_cb, PprzMessage("telemetry", "INS"))
 
+        #################################################################
         def rotorcraft_fp_cb(ac_id, msg):
             if ac_id in self.ids and msg.name == "ROTORCRAFT_FP":
                 rc = self.rotorcrafts[self.ids.index(ac_id)]
@@ -85,7 +86,29 @@ class Guidance(object):
                 rc.W[2] = float(msg['psi']) * i2w
                 rc.timeout = 0
                 rc.initialized = True
+        
+        # Un-comment this if the quadrotors are providing state information to use_deep_guidance.py
         self._interface.subscribe(rotorcraft_fp_cb, PprzMessage("telemetry", "ROTORCRAFT_FP"))
+    
+        # bind to GROUND_REF message : ENAC Voliere is sending LTP_ENU
+        def ground_ref_cb(ground_id, msg):
+            ac_id = int(msg['ac_id'])
+            if ac_id in self.ids:
+                rc = self.rotorcrafts[self.ids.index(ac_id)]
+                # X and V in NED
+                rc.X[0] = float(msg['pos'][1])
+                rc.X[1] = float(msg['pos'][0])
+                rc.X[2] = float(msg['pos'][2])
+                rc.V[0] = float(msg['speed'][1])
+                rc.V[1] = float(msg['speed'][0])
+                rc.V[2] = float(msg['speed'][2])
+                rc.timeout = 0
+                rc.initialized = True
+        
+        # Un-comment this if optitrack is being used for state information for use_deep_guidance.py **For use only in the Voliere**
+        #self._interface.subscribe(ground_ref_cb, PprzMessage("ground", "GROUND_REF"))
+        ################################################################
+
     # <message name="ROTORCRAFT_FP" id="147">
     #   <field name="east"     type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
     #   <field name="north"    type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>

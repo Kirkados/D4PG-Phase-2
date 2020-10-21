@@ -99,7 +99,6 @@ def main():
             # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
             last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
-            altitude_acceleration_command = np.zeros(Settings.NUMBER_OF_QUADS)
                 
             while True:
                 # TODO: make better frequency managing
@@ -219,11 +218,11 @@ def main():
                     # Using a separate PD controller to command the altitude.
                     # Each quad is assigned a different altitude to remain at.
                     desired_altitude = 2 + j
-                    altitude_error = desired_altitude - quad_positions[j,2]
-                    velocity_error = 0.0 - quad_velocities[j,2]
-                    
-                    altitude_acceleration_command[j] = np.clip(0.5*altitude_error + 1.0*velocity_error,-0.1,0.1)
-                    
+#                    altitude_error = desired_altitude - quad_positions[j,2]
+#                    velocity_error = 0.0 - quad_velocities[j,2]
+#                    
+#                    altitude_acceleration_command[j] = np.clip(0.5*altitude_error + 1.0*velocity_error,-0.1,0.1)
+#                    
 #                    if quad_positions[j,2] < 1.5+j:
 #                        altitude_acceleration_command[j] =  0.1
 #                    elif quad_positions[j,2] > 2.5+j:
@@ -231,14 +230,14 @@ def main():
 #                    else:
 #                        altitude_acceleration_command[j] =  0.0
                     if dont_average_output:
-                        g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j])
+                        g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j])
                     else:
-                        g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = -altitude_acceleration_command[j], quad_id = g.ids[j]) # Averaged        
+                        g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j]) # Averaged        
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), altitude_acceleration_command])
+                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitude])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
                 log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1

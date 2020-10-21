@@ -258,7 +258,7 @@ class Guidance(object):
     def accelerate(self, north=0.0, east=0.0, down=0.0, quad_id = 2):
         msg = PprzMessage("datalink", "DESIRED_SETPOINT")
         msg['ac_id'] = quad_id
-        msg['flag'] = 1 # full 3D
+        msg['flag'] = 0 # full 3D
         msg['ux'] = north
         msg['uy'] = east
         msg['uz'] = down

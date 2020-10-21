@@ -131,8 +131,7 @@ class Environment:
         
         # Physical properties
         self.LENGTH                           = 0.3  # [m] side length
-        self.MASS                             = 10   # [kg]
-        self.INERTIA                          = 1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
+        self.MASS                             = 0.5   # [kg]
         
         # Target collision properties
         self.COLLISION_DISTANCE               = self.LENGTH # [m] how close chaser and target need to be before a penalty is applied

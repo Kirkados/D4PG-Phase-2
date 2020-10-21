@@ -337,9 +337,7 @@ class Environment:
         current_linear_acceleration = (current_velocity - self.previous_velocity)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
         
         # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-
         desired_linear_acceleration[(np.abs(current_velocity) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_acceleration) == np.sign(current_velocity))] = 0        
-        print(np.abs(current_velocity),self.VELOCITY_LIMIT)
         
         # Calculating acceleration error
         linear_acceleration_error = desired_linear_acceleration - current_linear_acceleration

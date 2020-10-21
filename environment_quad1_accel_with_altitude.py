@@ -46,15 +46,19 @@ State clarity:
     - self.OBSERVATION_SIZE 
 
 
-Started March 26, 2020
+Started April 21, 2020
 @author: Kirk Hovell (khovell@gmail.com)
 """
 import numpy as np
 import os
+import psutil # FOR RAM USAGE
 import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
+import faulthandler # Added July 11 2020 to debug "segmentation faule (core dumped)" error
+import sys
+import time
 
 import matplotlib
 matplotlib.use('Agg')
@@ -64,49 +68,68 @@ import matplotlib.animation as animation
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.mplot3d import Axes3D
 
+
+
+
+# For printing out all variables and their sizes
+def sizeof_fmt(num, suffix='B'):
+    ''' by Fred Cirera,  https://stackoverflow.com/a/1094933/1870254, modified'''
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Yi', suffix)
+
+
+
+
+
+
 class Environment:
 
     def __init__(self):
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.TOTAL_STATE_SIZE         = 7 # [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta]
+        self.TOTAL_STATE_SIZE         = 10 # [chaser_x, chaser_y, chaser_z, target_x, target_y, target_z, target_theta, 
+                                           #  chaser_x_dot, chaser_y_dot, chaser_z_dot]
         ### Note: TOTAL_STATE contains all relevant information describing the problem, and all the information needed to animate the motion
         #         TOTAL_STATE is returned from the environment to the agent.
         #         A subset of the TOTAL_STATE, called the 'observation', is passed to the policy network to calculate acitons. This takes place in the agent
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network
+        self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE                      = 2 # [x_dot, y_dot, z_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-3, -3]) # [m/s, m/s, m/s]
-        self.UPPER_ACTION_BOUND               = np.array([ 3,  3]) # [m/s, m/s, m/s]
-        self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi]) # [m, m, m, m, m, m, rad] // lower bound for each element of TOTAL_STATE
-        self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, m, m, m, rad] // upper bound for each element of TOTAL_STATE
+        self.ACTION_SIZE                      = 3 # [x_dot_dot, y_dot_dot, z_dot_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
+        self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
         self.RANDOMIZE                        = True # whether or not to RANDOMIZE the state & target location
-        self.NOMINAL_INITIAL_POSITION         = np.array([0.0, 2.0, 0.0])
-        self.NOMINAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0])
-        self.MIN_V                            = -5000.
-        self.MAX_V                            =  0.
-        self.N_STEP_RETURN                    =   1
+        self.INITIAL_CHASER_POSITION          = np.array([0.0, 2.0, 0.0]) # [m, m, m]
+        self.INITIAL_CHASER_VELOCITY          = np.array([0.0, 0.0, 0.0]) # [m/s, m/s, m/s]
+        self.INITIAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
+        self.MIN_V                            = -200.
+        self.MAX_V                            =  300.
+        self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.1 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
-        self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
         self.END_ON_FALL                      = False # end episode on a fall off the table
         self.GOAL_REWARD                      =   0.
         self.NEGATIVE_PENALTY_FACTOR          = 1.5 # How much of a factor to additionally penalize negative rewards
-        self.MAX_NUMBER_OF_TIMESTEPS          = 450 # per episode -- 450 for stationary, 900 for rotating
+        self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
-        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0] # How much to weight the rewards in the state
+        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
+        self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
         
         # Obstacle properties
         self.USE_OBSTACLE              = False # Also change self.IRRELEVANT_STATES
@@ -114,21 +137,21 @@ class Environment:
         self.OBSTABLE_DISTANCE         = 0.2 # [m] radius of which the obstacle penalty will be applied
         self.OBSTACLE_INITIAL_POSITION = np.array([1.2, 1.2, 1.2]) # [m]
         self.OBSTABLE_VELOCITY         = np.array([0.0, 0.0, 0.0]) # [m/s]
-
+		
         # Test time properties
-        self.TEST_ON_DYNAMICS         = True # Whether or not to use full dynamics along with a PD controller at test time
-        self.KINEMATIC_NOISE          = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
-        self.KINEMATIC_NOISE_SD       = [0.02, 0.02, 0.02] # The standard deviation of the noise that is to be applied to each element in the state
-        self.FORCE_NOISE_AT_TEST_TIME = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
+        self.TEST_ON_DYNAMICS            = True # Whether or not to use full dynamics along with a PD controller at test time
+        self.KINEMATIC_NOISE             = False # Whether or not to apply noise to the kinematics in order to simulate a poor controller
+        self.KINEMATIC_POSITION_NOISE_SD = [0.2, 0.2, 0.2] # The standard deviation of the noise that is to be applied to each position element in the state
+        self.KINEMATIC_VELOCITY_NOISE_SD = [0.1, 0.1, 0.1] # The standard deviation of the noise that is to be applied to each velocity element in the state
+        self.FORCE_NOISE_AT_TEST_TIME    = False # [Default -> False] Whether or not to force kinematic noise to be present at test time
 
         # PD Controller Gains
-        self.KP                       = 0 # PD controller gain
-        self.KD                       = 2.0 # PD controller gain
-        self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 0] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
+        self.KP                       = 0.5 # Proportional-velocity controller gain for attitude controller
+        self.KI                       = 0.5 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
-        self.LENGTH  = 0.3  # [m] side length
-        self.MASS    = 0.5   # [kg]
+        self.LENGTH  = 0.2  # [m] side length
+        self.MASS    = 0.5   # [kg] for quadrotor
         self.INERTIA = 0.01#1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
         
         # Target collision properties
@@ -136,20 +159,20 @@ class Environment:
         self.TARGET_COLLISION_PENALTY  = 15           # [rewards/second] penalty given for colliding with target  
 
         # Additional properties
-        self.NUMBER_OF_QUADS          = 2 # [total quads used here (Only relevant for the runway environment)]
-        self.PHASE_1_TIME             = 900 # [s] the time to automatically switch from phase 0 to phase 1 -> 45 for stationary; 90 for rotating
         self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
-        self.DOCKING_TOO_FAST_PENALTY = 0 # [rewards/s] penalty for docking too quickly
-        self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
-        self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [1.5, 1.5, 0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
-        self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
-        
+        self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
+        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5] # [x, y, z] stationary: [0.5, 0.5, 0.5] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
+        self.PENALIZE_MAX_VELOCITY    = False
+        self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
+        self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
+        self.ACCELERATION_PENALTY     = 0.0 # [factor] how much to penalize all acceleration commands
+
+
         self.LOWER_STATE_BOUND        = np.concatenate([self.LOWER_STATE_BOUND, np.tile(self.LOWER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND        = np.concatenate([self.UPPER_STATE_BOUND, np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # upper bound for each element of TOTAL_STATE        
-        self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy        
-        
+        self.OBSERVATION_SIZE         = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
+
         # These need to be defined but are not used
         self.NUMBER_OF_QUADS         = 1
         self.RUNWAY_WIDTH            = 0
@@ -158,8 +181,6 @@ class Environment:
         self.RUNWAY_LENGTH_ELEMENTS  = 0
         self.MINIMUM_CAMERA_ALTITUDE = 0
         self.MAXIMUM_CAMERA_ALTITUDE = 0
-        
-        
 
     ###################################
     ##### Seeding the environment #####
@@ -179,39 +200,40 @@ class Environment:
         # Setting the default to be kinematics
         self.dynamics_flag = False
 
-        # Resetting phase number so we complete phase 0 before moving on to phase 1
-        self.phase_number = 0
-
         # Logging whether it is test time for this episode
         self.test_time = test_time
 
         # If we are randomizing the initial conditions and state
         if self.RANDOMIZE:
             # Randomizing initial state
-            self.chaser_position = self.NOMINAL_INITIAL_POSITION + np.random.randn(3)*[1, 1, 1]
+            self.chaser_position = self.INITIAL_CHASER_POSITION + np.random.randn(3)*[1, 1, 1]
             # Randomizing target state
-            self.target_location = self.NOMINAL_TARGET_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
+            self.target_location = self.INITIAL_TARGET_POSITION + np.random.randn(4)*[1, 1, 1, np.pi/2]
 
         else:
             # Constant initial state
-            self.chaser_position = self.NOMINAL_INITIAL_POSITION
+            self.chaser_position = self.INITIAL_CHASER_POSITION
             # Constant target location
-            self.target_location = self.NOMINAL_TARGET_POSITION
+            self.target_location = self.INITIAL_TARGET_POSITION
 
         # Obstacle initial location (not randomized)
         self.obstacle_location = self.OBSTACLE_INITIAL_POSITION
         
         # Docking port location
-        self.docking_port = self.target_location[:3] + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0.])
+        self.docking_port = self.target_location[:-1] + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0.])
 
         # Hold point location
-        self.hold_point   = self.target_location[:3] + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0.])
+        self.hold_point   = self.target_location[:-1] + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0.])
 
-        if use_dynamics:
-            # Setting the dynamics state to be equal, initially, to the kinematics state, plus the velocity initial conditions state
-            self.chaser_velocity = np.array([0., 0., 0.])
-            #self.state = np.concatenate((self.state, velocity_initial_conditions))
-            """ Note: dynamics_state = [x, y, z, theta, xdot, ydot, zdot, thetadot] """
+        # Chaser has zero initial velocity
+        self.chaser_velocity = self.INITIAL_CHASER_VELOCITY
+        
+        # Initializing the previous velocity and control effort for the integral-acceleration controller
+        self.previous_velocity = np.zeros(3)
+        self.previous_linear_control_effort = np.zeros(3)
+        
+        
+        if use_dynamics:            
             self.dynamics_flag = True # for this episode, dynamics will be used
 
         # Resetting the time
@@ -224,8 +246,7 @@ class Environment:
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE + 1), False)
-
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
     #####################################
     ##### Step the Dynamics forward #####
@@ -238,51 +259,45 @@ class Environment:
         ##### PROPAGATE KINEMATICS/DYNAMICS #####
         #########################################
         if self.dynamics_flag:
-            # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action]
-
             ############################
             #### PROPAGATE DYNAMICS ####
             ############################
-            # First calculate the next guidance command
-            guidance_propagation = odeint(kinematics_equations_of_motion, self.chaser_position, [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
-
-            # Saving the new guidance signal
-            guidance_position = guidance_propagation[1,:]
 
             # Next, calculate the control effort
-            control_effort = self.controller(guidance_position, action) # Passing the desired position and velocity (Note: the action is the desired velocity)
+            control_effort = self.controller(action)
 
             # Anything additional that needs to be sent to the dynamics integrator
             dynamics_parameters = [control_effort, self.MASS, self.INERTIA]
 
-            # Finally, propagate the dynamics forward one timestep
-            next_states = odeint(dynamics_equations_of_motion, np.concatenate((self.chaser_position, self.chaser_velocity)), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
+            # Propagate the dynamics forward one timestep
+            next_states = odeint(dynamics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (dynamics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:len(self.chaser_position)] # extract position
-            self.chaser_velocity = next_states[1,len(self.chaser_position):] # extract velocity
+            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity
 
         else:
 
             # Additional parameters to be passed to the kinematics
-            kinematics_parameters = [action]
-
-            # Dummy guidance position
-            guidance_position = []
+            kinematics_parameters = [action, len(self.INITIAL_CHASER_POSITION)]
 
             ###############################
             #### PROPAGATE KINEMATICS #####
             ###############################
-            next_states = odeint(kinematics_equations_of_motion, self.chaser_position, [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
+            next_states = odeint(kinematics_equations_of_motion, np.concatenate([self.chaser_position, self.chaser_velocity]), [self.time, self.time + self.TIMESTEP], args = (kinematics_parameters,), full_output = 0)
 
             # Saving the new state
-            self.chaser_position = next_states[1,:]
+            self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity            
 
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
                  # Add some noise to the position part of the state
-                 self.chaser_position += np.random.randn(len(self.chaser_position)) * self.KINEMATIC_NOISE_SD
+                 self.chaser_position += np.random.randn(len(self.chaser_position)) * self.KINEMATIC_POSITION_NOISE_SD
+                 self.chaser_velocity += np.random.randn(len(self.chaser_velocity)) * self.KINEMATIC_VELOCITY_NOISE_SD
+            
+            # Ensuring the velocity is within the bounds
+            self.chaser_velocity = np.clip(self.chaser_velocity, -self.VELOCITY_LIMIT, self.VELOCITY_LIMIT)
 
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
@@ -293,9 +308,6 @@ class Environment:
 
         # Check if this episode is done
         done = self.is_done()
-
-        # Check if Phase 1 was completed
-        self.check_phase_number()
         
         # Step obstacle's position ahead one timestep
         self.obstacle_location += self.OBSTABLE_VELOCITY*self.TIMESTEP
@@ -304,32 +316,42 @@ class Environment:
         self.target_location[3] += self.TARGET_ANGULAR_VELOCITY*self.TIMESTEP
 
         # Update the docking port target state
-        self.docking_port = self.target_location[:3] + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0.])
+        self.docking_port = self.target_location[:-1] + np.array([np.cos(self.target_location[3])*0.5, np.sin(self.target_location[3])*0.5, 0.])
 
         # Update the hold point location
-        self.hold_point   = self.target_location[:3] + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0.])
+        self.hold_point   = self.target_location[:-1] + np.array([np.cos(self.target_location[3])*self.HOLD_POINT_DISTANCE, np.sin(self.target_location[3])*self.HOLD_POINT_DISTANCE, 0.])
 
         # Return the (reward, done)
-        return reward, done, guidance_position
+        return reward, done
 
-    def check_phase_number(self):
-        # If the time is past PHASE_1_TIME seconds, automatically enter phase 2
-        if self.time >= self.PHASE_1_TIME and self.phase_number == 0:
-            self.phase_number = 1
-            self.previous_position_reward = [None, None, None] # Reset the reward function to avoid a major spike
-
-
-    def controller(self, guidance_position, guidance_velocity):
+    def controller(self, action):
         # This function calculates the control effort based on the state and the
-        # desired position (guidance_command)
+        # desired acceleration (action)
+        
+        ###########################################################
+        ### Position control (integral-acceleration controller) ###
+        ###########################################################
+        desired_linear_acceleration = action
+        
+        current_velocity = self.chaser_velocity # [v_x, v_y, v_z]
+        current_linear_acceleration = (current_velocity - self.previous_velocity)/self.TIMESTEP # Approximating the current acceleration [a_x, a_y, a_z]
+        
+        # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
+        desired_linear_acceleration[(np.abs(current_velocity) > self.VELOCITY_LIMIT) & (np.sign(desired_linear_acceleration) == np.sign(current_velocity))] = 0        
+        
+        # Calculating acceleration error
+        linear_acceleration_error = desired_linear_acceleration - current_linear_acceleration
+        
+        # Integral-acceleration control
+        linear_control_effort = self.previous_linear_control_effort + self.KI * linear_acceleration_error
 
-        position_error = guidance_position - self.chaser_position
-        velocity_error = guidance_velocity - self.chaser_velocity
+        # Saving the current velocity for the next timetsep
+        self.previous_velocity = current_velocity
+        
+        # Saving the current control effort for the next timestep
+        self.previous_linear_control_effort = linear_control_effort
 
-        # Using a PD controller on all states independently
-        control_effort = self.KP * position_error*self.CONTROLLER_ERROR_WEIGHT + self.KD * velocity_error*self.CONTROLLER_ERROR_WEIGHT
-
-        return control_effort
+        return linear_control_effort
 
     def pose_error(self):
         """
@@ -347,11 +369,7 @@ class Environment:
         # Returns the reward for this TIMESTEP as a function of the state and action
 
         # Sets the current location that we are trying to move to
-        if self.phase_number == 0:
-            desired_location = self.hold_point
-        elif self.phase_number == 1:
-            desired_location = self.docking_port
-
+        desired_location = self.hold_point
 
         current_position_reward = np.zeros(1)
 
@@ -377,10 +395,6 @@ class Environment:
         # Collapsing to a scalar
         reward = np.sum(reward)
 
-        # Giving a penalty for docking too quickly
-        if self.phase_number == 1 and np.any(np.abs(action) > self.MAX_DOCKING_SPEED):
-            reward -= self.DOCKING_TOO_FAST_PENALTY
-
         # Giving a massive penalty for falling off the table
         if self.chaser_position[0] > self.UPPER_STATE_BOUND[0] or self.chaser_position[0] < self.LOWER_STATE_BOUND[0] or self.chaser_position[1] > self.UPPER_STATE_BOUND[1] or self.chaser_position[1] < self.LOWER_STATE_BOUND[1]:
             reward -= self.FALL_OFF_TABLE_PENALTY/self.TIMESTEP
@@ -394,14 +408,22 @@ class Environment:
             reward -= self.OBSTABLE_PENALTY
             
         # Giving a penalty for colliding with the target
-        if np.linalg.norm(self.chaser_position[:-1] - self.target_location[:-2]) <= self.TARGET_COLLISION_DISTANCE:
+        if np.linalg.norm(self.chaser_position - self.target_location[:-1]) <= self.TARGET_COLLISION_DISTANCE:
             reward -= self.TARGET_COLLISION_PENALTY
             
         # Giving a penalty for high velocities near the target location
         if self.PENALIZE_VELOCITY:
-            radius = np.linalg.norm(desired_location - self.target_location[:3]) # vector from the target to the desired location
-            reference_velocity = self.TARGET_ANGULAR_VELOCITY*np.array([-radius*np.sin(self.target_location[2]), radius*np.cos(self.target_location[2]), 0])
+            radius = np.linalg.norm(desired_location- self.target_location[:2]) # vector from the target to the desired location
+            reference_velocity = self.TARGET_ANGULAR_VELOCITY*np.array([-radius*np.sin(self.target_location[2]), radius*np.cos(self.target_location[2]), 0, 1])
             reward -= np.sum(np.abs(action - reference_velocity)/(self.pose_error()**2+0.01)*self.VELOCITY_PENALTY)
+        
+        # Giving a penalty for exceeding the recommended maximum velocity (decided by Murat)
+        if self.PENALIZE_MAX_VELOCITY:
+            reward -= self.MAX_VELOCITY_PENALTY*np.sum(np.abs(self.chaser_velocity) > self.VELOCITY_LIMIT)
+            
+        
+        # Penalizing acceleration commands (to encourage fuel efficiency)
+        reward -= np.sum(self.ACCELERATION_PENALTY*np.abs(action))
 
         # Multiplying the reward by the TIMESTEP to give the rewards on a per-second basis
         return (reward*self.TIMESTEP).squeeze()
@@ -435,7 +457,7 @@ class Environment:
     
     def obstable_relative_location(self):
         # Returns the position of the obstacle with respect to the chaser
-        relative_position = self.obstacle_location - self.chaser_position
+        relative_position = self.obstacle_location - self.chaser_position[:len(self.chaser_position)-1]
         
         return relative_position
 
@@ -453,43 +475,79 @@ class Environment:
         # This permits the process to continue upon a Ctrl+C event to allow for graceful quitting.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+        
+        self.counter = 0 # INITIALIZING
+        
         # Loop until the process is terminated
         while True:
             # Blocks until the agent passes us an action
-            action, *test_time = self.agent_to_env.get()
+            action, *test_time = self.agent_to_env.get()        
 
             if type(action) == bool:
                 # The signal to reset the environment was received
                 self.reset(action, test_time[0])
                 
                 # Return the TOTAL_STATE
-                self.env_to_agent.put(np.concatenate((self.chaser_position, self.target_location)))
+                total_state = np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ])
+                self.env_to_agent.put(total_state)
 
-            else:                
+            else:
                 # Delay the action by DYNAMICS_DELAY timesteps. The environment accumulates the action delay--the agent still thinks the sent action was used.
                 if self.DYNAMICS_DELAY > 0:
-                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack                    
-                    action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.  
-                    
+                    self.action_delay_queue.put(action,False) # puts the current action to the bottom of the stack
+                    action = self.action_delay_queue.get(False) # grabs the delayed action and treats it as truth.                
+                
+                
+#                time.sleep(0.1)
+#                for name, size in sorted(((name, sys.getsizeof(value)) for name, value in locals().items()),
+#                                     key= lambda x: -x[1])[:10]:
+#                    print("{:>30}: {:>8}".format(name, sizeof_fmt(size)))
+                
+                
                 ################################
                 ##### Step the environment #####
-                ################################
-                reward, done, *guidance_position = self.step(action)
+                ################################                
+                reward, done = self.step(action)
+                
+                
+                
+                
+                
+                #print(sys.getsizeof(self.action_delay_queue), sys.getsizeof(self.target_location), sys.getsizeof(action))
+                
+                
+                
+                
+                
+                
+                
+                if (self.counter % 1000) == 0:
+                    pass
+                    #print("Environment.py PID %i is using %2.3f GB of RAM" %(os.getpid(), self.process.memory_info().rss/1000000000.0))
+                self.counter += 1
 
                 # Return (TOTAL_STATE, reward, done, guidance_position)
-                self.env_to_agent.put((np.concatenate((self.chaser_position, self.target_location)), reward, done, guidance_position))
+                self.env_to_agent.put((np.concatenate([self.chaser_position, np.concatenate([self.target_location, self.chaser_velocity]) ]), reward, done))
 
 ###################################################################
 ##### Generating kinematics equations representing the motion #####
 ###################################################################
 def kinematics_equations_of_motion(state, t, parameters):
     # From the state, it returns the first derivative of the state
-
+    
     # Unpacking the action from the parameters
     action = parameters[0]
+    position_length = parameters[1]
+    
+    # state is [position, velocity]
+    # its derivative is [velocity, acceleration]
+    #position = state[:position_length] # [x, y, z]
+    velocity = state[position_length:] # [x_dot, y_dot, z_dot]
+    
+    acceleration = action # [x_dot_dot, y_dot_dot, z_dot_dot]
 
-    # Building the derivative matrix. For kinematics, d(state)/dt = action = \dot{state}
-    derivatives = action
+    # Building the derivative matrix.
+    derivatives = np.concatenate([velocity, acceleration])
 
     return derivatives
 
@@ -505,6 +563,8 @@ def dynamics_equations_of_motion(state, t, parameters):
     control_effort, mass, inertia = parameters # unpacking parameters
 
     derivatives = np.array((xdot, ydot, zdot, control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass)).squeeze()
+    
+    #print("The achieved acceleration is ", control_effort[0]/mass, control_effort[1]/mass, control_effort[2]/mass, control_effort[3]/inertia)
 
     return derivatives
 
@@ -514,6 +574,8 @@ def dynamics_equations_of_motion(state, t, parameters):
 ##########################################
 def render(states, actions, instantaneous_reward_log, cumulative_reward_log, critic_distributions, target_critic_distributions, projected_target_distribution, bins, loss_log, guidance_position_log, episode_number, filename, save_directory):
 
+    faulthandler.enable() # to get more information about segmentation fault (core dumped) error 
+    
     # Load in a temporary environment, used to grab the physical parameters
     temp_env = Environment()
 
@@ -522,6 +584,8 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
 
     # Unpacking state
     chaser_x, chaser_y, chaser_z = states[:,0], states[:,1], states[:,2]
+    
+    # Assigning the chaser a fixed attitude
     chaser_theta = np.zeros(len(chaser_x))
     
     target_x, target_y, target_z, target_theta = states[:,3], states[:,4], states[:,5], states[:,6]
@@ -693,9 +757,9 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         # Update the time text
         time_text.set_text('Time = %.1f s' %(frame*temp_env.TIMESTEP))
 
-#       # Update the reward text
+        # Update the reward text
         reward_text.set_text('Total reward = %.1f' %cumulative_reward_log[frame])
-#
+        
         if extra_information:
             # Updating the instantaneous reward bar graph
             reward_bar[0].set_width(instantaneous_reward_log[frame])
@@ -735,20 +799,28 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     """
 
     # Save the animation!
-    try:
+    if temp_env.SKIP_FAILED_ANIMATIONS:
+        try:
+            # Save it to the working directory [have to], then move it to the proper folder
+            animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
+            # Make directory if it doesn't already exist
+            os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
+            # Move animation to the proper directory
+            os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
+        except:
+            print("Skipping animation for episode %i due to an error" %episode_number)
+            # Try to delete the partially completed video file
+            try:
+                os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
+            except:
+                pass
+    else:
         # Save it to the working directory [have to], then move it to the proper folder
         animator.save(filename = filename + '_episode_' + str(episode_number) + '.mp4', fps = 30, dpi = 100)
         # Make directory if it doesn't already exist
         os.makedirs(os.path.dirname(save_directory + filename + '/videos/'), exist_ok=True)
         # Move animation to the proper directory
         os.rename(filename + '_episode_' + str(episode_number) + '.mp4', save_directory + filename + '/videos/episode_' + str(episode_number) + '.mp4')
-    except:
-        print("Skipping animation for episode %i due to an error" %episode_number)
-        # Try to delete the partially completed video file
-        try:
-            os.remove(filename + '_episode_' + str(episode_number) + '.mp4')
-        except:
-            pass
 
     del temp_env
     plt.close(figure)

@@ -283,9 +283,9 @@ class Environment:
         # This function calculates the control effort based on the state and the
         # desired acceleration (action)
         
-        ###########################################################
-        ### Position control (integral-acceleration controller) ###
-        ###########################################################
+        ###############################################################
+        ### Acceleration control (integral-acceleration controller) ###
+        ###############################################################
         desired_linear_accelerations = actions
         
         current_velocities = self.quad_velocities

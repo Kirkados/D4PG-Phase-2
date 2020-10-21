@@ -77,11 +77,11 @@ class Environment:
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network
+        self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE                      = 2 # [x_dot, y_dot, z_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-3, -3]) # [m/s, m/s, m/s]
-        self.UPPER_ACTION_BOUND               = np.array([ 3,  3]) # [m/s, m/s, m/s]
+        self.ACTION_SIZE                      = 3 # [x_dot, y_dot, z_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-3, -3, -3]) # [m/s, m/s, m/s]
+        self.UPPER_ACTION_BOUND               = np.array([ 3,  3,  3]) # [m/s, m/s, m/s]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi]) # [m, m, m, m, m, m, rad] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, m, m, m, rad] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
@@ -104,7 +104,7 @@ class Environment:
         self.MAX_NUMBER_OF_TIMESTEPS          = 450 # per episode -- 450 for stationary, 900 for rotating
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
-        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0] # How much to weight the rewards in the state
+        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
         
@@ -124,7 +124,7 @@ class Environment:
         # PD Controller Gains
         self.KP                       = 0 # PD controller gain
         self.KD                       = 2.0 # PD controller gain
-        self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 0] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
+        self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 1] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
         
         # Physical properties
         self.LENGTH  = 0.3  # [m] side length
@@ -143,7 +143,7 @@ class Environment:
         self.MAX_DOCKING_SPEED        = [0.02, 0.02, 0.02]
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = True # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [1.5, 1.5, 0] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
+        self.VELOCITY_PENALTY         = [1.5, 1.5, 1.5] # [x, y, theta] stationary: [0.5, 0.5, 0.5/250] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location
         self.VELOCITY_LIMIT           = 1000 # [irrelevanet for this environment]
         
         self.LOWER_STATE_BOUND        = np.concatenate([self.LOWER_STATE_BOUND, np.tile(self.LOWER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH)]) # lower bound for each element of TOTAL_STATE
@@ -224,7 +224,7 @@ class Environment:
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE + 1), False)
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
 
 
     #####################################
@@ -394,7 +394,7 @@ class Environment:
             reward -= self.OBSTABLE_PENALTY
             
         # Giving a penalty for colliding with the target
-        if np.linalg.norm(self.chaser_position[:-1] - self.target_location[:-2]) <= self.TARGET_COLLISION_DISTANCE:
+        if np.linalg.norm(self.chaser_position - self.target_location[:-1]) <= self.TARGET_COLLISION_DISTANCE:
             reward -= self.TARGET_COLLISION_PENALTY
             
         # Giving a penalty for high velocities near the target location

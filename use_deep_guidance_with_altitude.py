@@ -143,7 +143,7 @@ def main():
                     past_actions.put(deep_guidance)
                     
                 # Send velocity command to aircraft!
-                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = 0, quad_id = follower_id)
+                g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], quad_id = follower_id)
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
                 
                 # Log all input and outputs:

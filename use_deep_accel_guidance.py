@@ -183,10 +183,13 @@ def main():
                 # Send velocity/acceleration command to aircraft!
                 #g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2])
                 
+                # Since we are accelerating only in 2D, we must send an altitude command.
+                desired_altitude = 3 # [m]
+                
                 if dont_average_output:
-                    g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = -deep_guidance[2], quad_id = follower_id)
+                    g.accelerate(north = deep_guidance[0], east = -deep_guidance[1], down = desired_altitude, quad_id = follower_id)
                 else:
-                    g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id) # Averaged 
+                    g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = desired_altitude, quad_id = follower_id) # Averaged 
                 
                 #g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id)
                 #g.accelerate(north = 1, east = 0.1, down = 0)

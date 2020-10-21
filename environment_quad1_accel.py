@@ -99,11 +99,11 @@ class Environment:
         #         The TOTAL_STATE is passed to the animator below to animate the motion.
         #         The chaser and target state are contained in the environment. They are packaged up before being returned to the agent.
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
-        self.IRRELEVANT_STATES                = [] # indices of states who are irrelevant to the policy network
+        self.IRRELEVANT_STATES                = [2,5,9] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE                      = 3 # [x_dot_dot, y_dot_dot, z_dot_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
-        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.ACTION_SIZE                      = 2 # [x_dot_dot, y_dot_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-2.0, -2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
+        self.UPPER_ACTION_BOUND               = np.array([ 2.0,  2.0]) # [rad/s, m/s^2, m/s^2, m/s^2]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi, -4.0, -4.0, -4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi,  4.0,  4.0,  4.0]) # [m, m, m, m, m, m, rad, m/s, m/s, m/s] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
@@ -126,7 +126,7 @@ class Environment:
         self.MAX_NUMBER_OF_TIMESTEPS          = 100 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
-        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.5] # How much to weight the rewards in the state
+        self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
         self.TOP_DOWN_VIEW                    = False # Animation property
         self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
@@ -162,7 +162,7 @@ class Environment:
         self.HOLD_POINT_DISTANCE      = 3.0 # [m] the distance the hold point is offset from the front-face of the target
         self.TARGET_ANGULAR_VELOCITY  = 0#0.0698 #[rad/s] constant target angular velocity stationary: 0 ; rotating: 0.0698
         self.PENALIZE_VELOCITY        = False # Should the velocity be penalized with severity proportional to how close it is to the desired location? Added Dec 11 2019
-        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.5] # [x, y, z] stationary: [0.5, 0.5, 0.5] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
+        self.VELOCITY_PENALTY         = [0.5, 0.5, 0.] # [x, y, z] stationary: [0.5, 0.5, 0.5] ; rotating [0.5, 0.5, 0] Amount the chaser should be penalized for having velocity near the desired location        
         self.PENALIZE_MAX_VELOCITY    = False
         self.VELOCITY_LIMIT           = 3 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded
         self.MAX_VELOCITY_PENALTY     = 00000 # [rewards/s] how much to penalize velocities above the limits (hard caps are currently enforced so a penalty is not needed)
@@ -246,7 +246,7 @@ class Environment:
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE), False)
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE + 1), False)
 
     #####################################
     ##### Step the Dynamics forward #####
@@ -288,8 +288,8 @@ class Environment:
 
             # Saving the new state
             self.chaser_position = next_states[1,:len(self.INITIAL_CHASER_POSITION)] # extract position
-            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity            
-
+            self.chaser_velocity = next_states[1,len(self.INITIAL_CHASER_POSITION):] # extract velocity  
+            
             # Optionally, add noise to the kinematics to simulate "controller noise"
             if self.KINEMATIC_NOISE and (not self.test_time or self.FORCE_NOISE_AT_TEST_TIME):
                  # Add some noise to the position part of the state
@@ -408,7 +408,7 @@ class Environment:
             reward -= self.OBSTABLE_PENALTY
             
         # Giving a penalty for colliding with the target
-        if np.linalg.norm(self.chaser_position - self.target_location[:-1]) <= self.TARGET_COLLISION_DISTANCE:
+        if np.linalg.norm(self.chaser_position[:-1] - self.target_location[:-2]) <= self.TARGET_COLLISION_DISTANCE:
             reward -= self.TARGET_COLLISION_PENALTY
             
         # Giving a penalty for high velocities near the target location

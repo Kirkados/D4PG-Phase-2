@@ -170,12 +170,12 @@ def main():
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
                 current_velocity = policy_input[7:10]                
-                deep_guidance[(np.abs(current_velocity) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(current_velocity))] = 0 
+                deep_guidance[(np.abs(current_velocity[0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance) == np.sign(current_velocity[0:2]))] = 0 
         
                 # If we are in the deadband, set the acceleration to zero!
-                desired_location = np.array([policy_input[3]+3*np.cos(policy_input[6]), policy_input[4]+3*np.sin(policy_input[6]), policy_input[5]])
-                current_location = policy_input[0:3]
-                deep_guidance[np.abs((np.abs(current_location) - np.abs(desired_location))) < deadband_radius] = 0
+#                desired_location = np.array([policy_input[3]+3*np.cos(policy_input[6]), policy_input[4]+3*np.sin(policy_input[6]), policy_input[5]])
+#                current_location = policy_input[0:3]
+#                deep_guidance[np.abs((np.abs(current_location) - np.abs(desired_location))) < deadband_radius] = 0
                 
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
@@ -194,15 +194,15 @@ def main():
                 #g.accelerate(north = average_deep_guidance[0], east = -average_deep_guidance[1], down = -average_deep_guidance[2], quad_id = follower_id)
                 #g.accelerate(north = 1, east = 0.1, down = 0)
                 
-                print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f Guidance_X: %.2f, Y: %.2f, Z: %.2f" %(policy_input[0], policy_input[1], policy_input[2], policy_input[7], policy_input[8], policy_input[9], average_deep_guidance[0], average_deep_guidance[1], average_deep_guidance[2]))                
+                print("X: %2.2f Y: %2.2f Z: %2.2f Vx: %2.2f Vy: %2.2f Vz: %2.2f Guidance_X: %.2f, Y: %.2f, Z: Alt held at %.2f" %(policy_input[0], policy_input[1], policy_input[2], policy_input[7], policy_input[8], policy_input[9], average_deep_guidance[0], average_deep_guidance[1], desired_altitude))                
                 
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:4] = deep_guidance
-                log_placeholder[i,4:7] = average_deep_guidance
+                log_placeholder[i,1:3] = deep_guidance
+                log_placeholder[i,3:5] = average_deep_guidance
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,7:7+len(normalized_policy_input[0])] = policy_input
+                log_placeholder[i,5:5+len(policy_input)] = policy_input
                 i += 1
     
 

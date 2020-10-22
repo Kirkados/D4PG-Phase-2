@@ -128,7 +128,7 @@ class Environment:
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
-        self.TOP_DOWN_VIEW                    = False # Animation property
+        self.TOP_DOWN_VIEW                    = True # Animation property
         self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
         
         # Obstacle properties

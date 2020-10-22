@@ -92,7 +92,7 @@ class Environment:
         self.MAX_V                            =  0.
         self.N_STEP_RETURN                    =   1
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
-        self.TIMESTEP                         =   0.1 # [s]
+        self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.AUGMENT_STATE_WITH_STATE_LENGTH  =   0 # [timesteps] how many timesteps of previous states should be included in the state

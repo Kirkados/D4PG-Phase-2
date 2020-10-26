@@ -141,7 +141,7 @@ def main():
                 # Adding the action taken to the past_action log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     past_actions.put(deep_guidance)
-                    
+                
                 # Send velocity command to aircraft!
                 g.move_at_ned_vel(north = deep_guidance[0], east = -deep_guidance[1], down = 0, quad_id = follower_id)
                 print("Policy input: ", policy_input, "Deep guidance command: ", deep_guidance)
@@ -149,10 +149,10 @@ def main():
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:4] = deep_guidance
-                log_placeholder[i,4:7] = deep_guidance
+                log_placeholder[i,1:3] = deep_guidance
+                log_placeholder[i,3:5] = deep_guidance
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,7:7+len(normalized_policy_input[0])] = policy_input
+                log_placeholder[i,5:5+len(policy_input)] = policy_input
                 i += 1
     
 

@@ -123,7 +123,7 @@ class Environment:
 
         # PD Controller Gains
         self.KP                       = 0 # PD controller gain
-        self.KD                       = 2.0 # PD controller gain
+        self.KD                       = 0.1 # PD controller gain
         self.CONTROLLER_ERROR_WEIGHT  = [1, 1, 0] # How much to weight each error signal (for example, to weight the angle error less than the position error)      
         
         # Physical properties

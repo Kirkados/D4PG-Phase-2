@@ -115,7 +115,7 @@ class Environment:
         self.MAX_V                            =  300.
         self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
-        self.TIMESTEP                         =   0.1 # [s]
+        self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.TARGET_REWARD                    =   1. # reward per second
@@ -128,7 +128,7 @@ class Environment:
         self.REWARD_TYPE                      = True # True = Linear; False = Exponential
         self.REWARD_WEIGHTING                 = [0.5, 0.5, 0.] # How much to weight the rewards in the state
         self.REWARD_MULTIPLIER                = 250 # how much to multiply the differential reward by
-        self.TOP_DOWN_VIEW                    = False # Animation property
+        self.TOP_DOWN_VIEW                    = True # Animation property
         self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?
         
         # Obstacle properties
@@ -150,7 +150,7 @@ class Environment:
         self.KI                       = 0.5 # Integral gain for the integral-linear acceleration controller
         
         # Physical properties
-        self.LENGTH  = 0.2  # [m] side length
+        self.LENGTH  = 0.3  # [m] side length
         self.MASS    = 0.5   # [kg] for quadrotor
         self.INERTIA = 0.01#1/12*self.MASS*(self.LENGTH**2 + self.LENGTH**2) # 0.15 [kg m^2]
         

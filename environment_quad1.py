@@ -79,9 +79,9 @@ class Environment:
         #         The total state information returned must be as commented beside self.TOTAL_STATE_SIZE.
         self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES) # the size of the observation input to the policy
-        self.ACTION_SIZE                      = 2 # [x_dot, y_dot, z_dot]
-        self.LOWER_ACTION_BOUND               = np.array([-3, -3]) # [m/s, m/s, m/s]
-        self.UPPER_ACTION_BOUND               = np.array([ 3,  3]) # [m/s, m/s, m/s]
+        self.ACTION_SIZE                      = 2 # [x_dot, y_dot]
+        self.LOWER_ACTION_BOUND               = np.array([-3, -3]) # [m/s, m/s]
+        self.UPPER_ACTION_BOUND               = np.array([ 3,  3]) # [m/s, m/s]
         self.LOWER_STATE_BOUND                = np.array([-5., -5.,  0., -5., -5.,  0., -4*2*np.pi]) # [m, m, m, m, m, m, rad] // lower bound for each element of TOTAL_STATE
         self.UPPER_STATE_BOUND                = np.array([ 5.,  5., 10.,  5.,  5., 10.,  4*2*np.pi]) # [m, m, m, m, m, m, rad] // upper bound for each element of TOTAL_STATE
         self.NORMALIZE_STATE                  = True # Normalize state on each timestep to avoid vanishing gradients
@@ -90,7 +90,7 @@ class Environment:
         self.NOMINAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0])
         self.MIN_V                            = -5000.
         self.MAX_V                            =  0.
-        self.N_STEP_RETURN                    =   1
+        self.N_STEP_RETURN                    =   5
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized

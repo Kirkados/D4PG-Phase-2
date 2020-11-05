@@ -90,7 +90,7 @@ class Environment:
         self.NOMINAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0])
         self.MIN_V                            = -5000.
         self.MAX_V                            =  0.
-        self.N_STEP_RETURN                    =   5
+        self.N_STEP_RETURN                    =   1 #######******%%%%%% SET TO 1 WHEN IT USED TO BE 5 *****$$$$$$$
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized

@@ -3,13 +3,16 @@
 import math, sys, os, numpy as np, time, threading, logging, matplotlib.pyplot as plt
 import pdb
 
+# Custom start and stop timesteps
+START = 0
+STOP = 100
+
 def plot_data(data):
     fig = plt.figure(figsize=(15,7))
-    t = data[:,0]
+    t = data[START:STOP,0]
     plt.subplot(511)
-    plt.plot(t,data[:,1], alpha=0.7, label='Deep Guidance X')
-    plt.plot(t,data[:,2], alpha=0.7, label='Deep Guidance Y')
-    plt.plot(t,data[:,3], alpha=0.7, label='Deep Guidance Z')
+    plt.plot(t,data[START:STOP,1], alpha=0.7, label='Deep Guidance X')
+    plt.plot(t,data[START:STOP,2], alpha=0.7, label='Deep Guidance Y')
     plt.grid();plt.legend()
 
 
@@ -23,18 +26,18 @@ def plot_data(data):
 
 
     plt.subplot(512)
-    plt.plot(t,data[:,4],  '--b', alpha=0.7, label='X')
-    plt.plot(t,data[:,5], '--r', alpha=0.7, label='Y')
-#    plt.plot(t,data[:,6], '--g', alpha=0.7, label='Z')
-#    plt.plot(t,data[:,],  'b', alpha=0.7, label='Follower X')
-#    plt.plot(t,data[:,6],  'r', alpha=0.7, label='Y')
-#    plt.plot(t,data[:,7],  'g', alpha=0.7, label='Z')
+    plt.plot(t,data[START:STOP,5],  '--b', alpha=0.7, label='Follower X')
+    plt.plot(t,data[START:STOP,6], '--r', alpha=0.7, label='Follower Y')
+    plt.plot(t,data[START:STOP,7], '--g', alpha=0.7, label='Follower Z')
+    # plt.plot(t,data[:,],  'b', alpha=0.7, label='Follower X')
+    # plt.plot(t,data[:,6],  'r', alpha=0.7, label='Y')
+    # plt.plot(t,data[:,7],  'g', alpha=0.7, label='Z')
     plt.grid();plt.legend()
 
     plt.subplot(513)
-    plt.plot(t,data[:,6], alpha=0.7, label='Vx')
-    plt.plot(t,data[:,7], alpha=0.7, label='Vy')
-#    plt.plot(t,data[:,7], alpha=0.7, label='Vz')
+    plt.plot(t,data[START:STOP,8], alpha=0.7, label='Target X')
+    plt.plot(t,data[START:STOP,9], alpha=0.7, label='Target Y')
+    plt.plot(t,data[START:STOP,10], alpha=0.7, label='Target Z')
     plt.grid();plt.legend()
     
 
@@ -44,13 +47,13 @@ def plot_data(data):
     # plt.plot(t,data[:,11], alpha=0.7, label='Z')
     # plt.grid();plt.legend()
 
-    plt.subplot(514)
-    plt.plot(data[:,8:13],label='past_actions', alpha=0.3)
-    plt.grid();plt.legend()
+    # plt.subplot(514)
+    # plt.plot(data[:,8:13],label='past_actions', alpha=0.3)
+    # plt.grid();plt.legend()
     
-    plt.subplot(515)
-    plt.plot(data[:,14:], label='runway_state', alpha = 0.3)
-    plt.grid()#;plt.legend()
+    # plt.subplot(515)
+    # plt.plot(data[:,14:], label='runway_state', alpha = 0.3)
+    # plt.grid()#;plt.legend()
 
     
     

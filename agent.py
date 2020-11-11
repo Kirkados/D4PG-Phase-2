@@ -254,7 +254,7 @@ class Agent:
                 #### Step the dynamics forward one timestep ####
                 ################################################
                 # Send the action to the environment process
-                self.agent_to_env.put((np.concatenate([action, np.zeros([1])]),))
+                self.agent_to_env.put((np.concatenate([action, np.zeros([1])]),)) # The concatenated 0 is to command 0 altitude acceleration
 
                 # Receive results from stepped environment
                 next_total_state, reward, done, *guidance_position = self.env_to_agent.get() # The * means the variable will be unpacked only if it exists

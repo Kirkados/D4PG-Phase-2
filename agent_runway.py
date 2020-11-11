@@ -265,7 +265,7 @@ class Agent:
                 ################################################
                 # Padding the actions with zeros to ensure to altitude command is issued                
                 # Send the action to the environment process
-                self.agent_to_env.put((np.concatenate([actions, np.zeros([Settings.NUMBER_OF_QUADS,1])], axis = 1),))
+                self.agent_to_env.put((np.concatenate([actions, np.zeros([Settings.NUMBER_OF_QUADS,1])], axis = 1),)) # the concatenated zeros are hard-coded to ensure no altitude command is sent
 
                 # Receive results from stepped environment
                 next_quad_positions, next_quad_velocities, next_runway_state, rewards, done = self.env_to_agent.get()

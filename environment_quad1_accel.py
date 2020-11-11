@@ -113,11 +113,11 @@ class Environment:
         self.INITIAL_TARGET_POSITION          = np.array([0.0, 0.0, 5.0, 0.0]) # [m, m, m, rad]
         self.MIN_V                            = -200.
         self.MAX_V                            =  300.
-        self.N_STEP_RETURN                    =   1 ####*********%%%%%% SET TO 1 -> Used to be set to 5 ^^$%*$%*#$$&@&#*$*
+        self.N_STEP_RETURN                    =   2 ####*********%%%%%% SET TO 1 -> Used to be set to 5 ^^$%*$%*#$$&@&#*$*
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
-        self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
-        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
+        self.DYNAMICS_DELAY                   =   5 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
+        self.AUGMENT_STATE_WITH_ACTION_LENGTH =   5 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
         self.TARGET_REWARD                    =   1. # reward per second
         self.FALL_OFF_TABLE_PENALTY           =   0.
         self.END_ON_FALL                      = False # end episode on a fall off the table
@@ -245,7 +245,7 @@ class Environment:
         if self.DYNAMICS_DELAY > 0:
             self.action_delay_queue = queue.Queue(maxsize = self.DYNAMICS_DELAY + 1)
             for i in range(self.DYNAMICS_DELAY):
-                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE + 1), False)
+                self.action_delay_queue.put(np.zeros(self.ACTION_SIZE + 1), False) # the +1 is to hold the z position at zero
 
     #####################################
     ##### Step the Dynamics forward #####

@@ -110,7 +110,7 @@ class Environment:
         self.INITIAL_QUAD_POSITION            = np.array([self.RUNWAY_LENGTH/2, self.RUNWAY_WIDTH/2, 3.0]) # [m, m, m]         
         self.MIN_V                            =  0.
         self.MAX_V                            =  self.RUNWAY_LENGTH_ELEMENTS*self.RUNWAY_WIDTH_ELEMENTS
-        self.N_STEP_RETURN                    =   5
+        self.N_STEP_RETURN                    =   2
         self.DISCOUNT_FACTOR                  =   0.95**(1/self.N_STEP_RETURN)
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized

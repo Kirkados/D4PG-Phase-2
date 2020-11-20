@@ -237,7 +237,7 @@ def main():
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitude])
+                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), np.array(desired_altitude).reshape(-1)])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
                 log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1

@@ -99,6 +99,7 @@ def main():
             # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
             last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
+            desired_altitudes = np.linspace(2, 2+Settings.NUMBER_OF_QUADS, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
             while True:
                 # TODO: make better frequency managing
@@ -217,7 +218,7 @@ def main():
                     
                     # Using a separate PD controller to command the altitude.
                     # Each quad is assigned a different altitude to remain at.
-                    desired_altitude = 2 + j
+                    desired_altitude = desired_altitudes[j]
 #                    altitude_error = desired_altitude - quad_positions[j,2]
 #                    velocity_error = 0.0 - quad_velocities[j,2]
 #                    
@@ -237,7 +238,7 @@ def main():
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
-                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), np.array(desired_altitude).reshape(-1)])
+                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitudes.reshape(-1)])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
                 log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1

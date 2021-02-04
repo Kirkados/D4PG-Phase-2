@@ -192,7 +192,7 @@ def main():
                     
                     # All quad data is included, now append the runway state and save it to the total_state
                     total_states.append(this_quads_state)
-                
+
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
@@ -265,13 +265,6 @@ def main():
                 i += 1
     
             # If we ended gracefully
-            print('Shutting down...')
-            g.shutdown()
-            sleep(0.2)
-            print("Saving file as %s.txt..." %(log_filename))
-            with open(log_filename+".txt", 'wb') as f:
-                np.save(f, log_placeholder[:i])
-            print("Done!")
             exit()
         
         # If we ended forcefully

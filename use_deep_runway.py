@@ -29,8 +29,13 @@ def main():
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
+    
+    # Communication delay length in timesteps
+    COMMUNICATION_DELAY_LENGTH = 0 # timesteps
+    print("\nA simulated communication delay of %.1f seconds is used" %(COMMUNICATION_DELAY_LENGTH*Settings.TIMESTEP))
 
     interface = None
+    not_done = True
     
     # converting this input from a list of strings to a list of ints
     all_ids = list(map(int, args.quad_ids))
@@ -101,10 +106,9 @@ def main():
             last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
             desired_altitudes = np.linspace(2, 2+Settings.NUMBER_OF_QUADS, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
-            while True:
+            while not_done:
                 # TODO: make better frequency managing
-                sleep(timestep)
-                total_time = total_time + timestep
+                sleep(timestep)                
                 
                 # Initializing quadrotor positions and velocities
                 quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 
@@ -131,6 +135,19 @@ def main():
 
                     quad_number_not_id += 1
                 
+                # Resetting the action delay queue 
+                if total_time == 0.0:                        
+                    if COMMUNICATION_DELAY_LENGTH > 0:
+                        communication_delay_queue = queue.Queue(maxsize = COMMUNICATION_DELAY_LENGTH + 1)
+                        # Fill it with zeros initially
+                        for i in range(COMMUNICATION_DELAY_LENGTH):
+                            communication_delay_queue.put([quad_positions, quad_velocities], False)
+                        
+                        
+                if COMMUNICATION_DELAY_LENGTH > 0:
+                    communication_delay_queue.put([quad_positions, quad_velocities], False) # puts the current position and velocity to the bottom of the stack
+                    delayed_quad_positions, delayed_quad_velocities = communication_delay_queue.get(False) # grabs the delayed position and velocity.   
+                                
                 # Check runway state
                 # The size of each runway grid element
                 each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
@@ -159,7 +176,7 @@ def main():
                 
                 if np.all(runway_state) == 1:
                     print("Explored the entire runway in %.2f seconds--Congratualtions! Quitting deep guidance" %(time.time()-start_time))
-                    sys.exit()
+                    not_done = False
                 
                 total_states = []
                 # Building NUMBER_OF_QUADS states
@@ -168,11 +185,14 @@ def main():
                     this_quads_state = np.concatenate([quad_positions[j,:], quad_velocities[j,:]])               
                     # Add in the others' states, starting with the next quad and finishing with the previous quad
                     for k in range(j + 1, Settings.NUMBER_OF_QUADS + j):
-                        this_quads_state = np.concatenate([this_quads_state, quad_positions[k % Settings.NUMBER_OF_QUADS,:], quad_velocities[k % Settings.NUMBER_OF_QUADS,:]])
+                        if COMMUNICATION_DELAY_LENGTH > 0:
+                            this_quads_state = np.concatenate([this_quads_state, delayed_quad_positions[k % Settings.NUMBER_OF_QUADS,:], delayed_quad_velocities[k % Settings.NUMBER_OF_QUADS,:]])
+                        else:
+                            this_quads_state = np.concatenate([this_quads_state, quad_positions[k % Settings.NUMBER_OF_QUADS,:], quad_velocities[k % Settings.NUMBER_OF_QUADS,:]])
                     
                     # All quad data is included, now append the runway state and save it to the total_state
                     total_states.append(this_quads_state)
-                    
+                
                 # Augment total_state with past actions, if appropriate
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
                     # total_states = [Settings.NUMBER_OF_QUADS, Settings.TOTAL_STATE_SIZE]
@@ -235,6 +255,7 @@ def main():
                     else:
                         g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j]) # Averaged        
                 
+                total_time = total_time + timestep
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[i,0] = t
@@ -243,9 +264,18 @@ def main():
                 log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
                 i += 1
     
-
-
-        except (KeyboardInterrupt, SystemExit):
+            # If we ended gracefully
+            print('Shutting down...')
+            g.shutdown()
+            sleep(0.2)
+            print("Saving file as %s.txt..." %(log_filename))
+            with open(log_filename+".txt", 'wb') as f:
+                np.save(f, log_placeholder[:i])
+            print("Done!")
+            exit()
+        
+        # If we ended forcefully
+        except (KeyboardInterrupt, SystemExit):            
             print('Shutting down...')
             g.shutdown()
             sleep(0.2)

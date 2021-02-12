@@ -2,13 +2,11 @@
 
 from __future__ import print_function
 
-import sys
-from os import path, getenv
 
-from math import radians
 from time import sleep
 import numpy as np
 import queue
+from shapely.geometry import LineString, Polygon
 
 # Deep guidance stuff
 import tensorflow as tf
@@ -18,7 +16,7 @@ from settings import Settings
 from build_neural_networks import BuildActorNetwork
 
 # Paparazzi guidance api
-from guidance_common import Rotorcraft , Guidance
+from guidance_common import Guidance
 
 
 

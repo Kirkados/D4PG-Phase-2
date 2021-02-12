@@ -82,9 +82,9 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
-        self.INDOORS                          = False # True = indoors; False = outdoors
+        self.INDOORS                          = True # True = indoors; False = outdoors
         if self.INDOORS:
             self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 4 # [m] in X (North)
@@ -162,10 +162,10 @@ class Environment:
             this_row = []
             for j in range(self.RUNWAY_WIDTH_ELEMENTS):
                 # make the polygon
-                this_row.append(Polygon([[each_runway_length_element*i, each_runway_width_element*j],
-                                         [each_runway_length_element*(i+1), each_runway_width_element*j],
-                                         [each_runway_length_element*(i+1), each_runway_width_element*(j+1)],
-                                         [each_runway_length_element*i, each_runway_width_element*(j+1)]]))
+                this_row.append(Polygon([[each_runway_length_element*i     - self.RUNWAY_LENGTH/2, each_runway_width_element*j     - self.RUNWAY_WIDTH/2],
+                                         [each_runway_length_element*(i+1) - self.RUNWAY_LENGTH/2, each_runway_width_element*j     - self.RUNWAY_WIDTH/2],
+                                         [each_runway_length_element*(i+1) - self.RUNWAY_LENGTH/2, each_runway_width_element*(j+1) - self.RUNWAY_WIDTH/2],
+                                         [each_runway_length_element*i     - self.RUNWAY_LENGTH/2, each_runway_width_element*(j+1) - self.RUNWAY_WIDTH/2]]))
                 
             self.tile_polygons.append(this_row)
 
@@ -340,7 +340,6 @@ class Environment:
             the intersecting tiles are considered explored. This fixes the experimental problems where corners of tiles
             were being flown over but not considered explored
         """
-        """ New Method """
         # Generate quadrotor LineStrings
         for i in range(self.NUMBER_OF_QUADS):
             quad_line = LineString([self.quad_positions[i,:-1], self.previous_quad_positions[i,:-1]])
@@ -352,38 +351,9 @@ class Environment:
                         self.runway_state[j,k] = 1
                         print("Quad %i traced the line %s and explored runway element length = %i, width = %i with coordinates %s" %(i,list(quad_line.coords),j,k,self.tile_polygons[j][k].bounds))
             
-        
-                # # Check each quad on the polygon
-                # for k in range(self.NUMBER_OF_QUADS):
-                #     # If a quad passed through a polygon
-                #     if quad_lines[k].within(tile_polygon):
-                #         # Set it to explored
-                #         self.runway_state[j, i] = 1
-                #         print("Quad %i traced the line %s and explored runway element width = %i, length = %i with coordinates %s" %(k,list(quad_lines[k].coords),i,j,tile_polygon.bounds))
-        
-        
-        
-        # Checking which tiles have been explored
-        
-        
         # Storing current quad positions for the next timestep
         self.previous_quad_positions = self.quad_positions
-        
-        
-        """ Old Method """
-        # Which zones is each quad in?
-        # rows = np.floor(self.quad_positions[:,0]/each_runway_length_element).astype(int)
-        # columns = np.floor(self.quad_positions[:,1]//each_runway_width_element).astype(int)
-
-        # # Which zones are actually over the runway?
-        # elements_to_keep = np.array((rows >= 0) & (rows < self.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < self.RUNWAY_WIDTH_ELEMENTS) & (self.quad_positions[:,2] >= self.MINIMUM_CAMERA_ALTITUDE) & (self.quad_positions[:,2] <= self.MAXIMUM_CAMERA_ALTITUDE))
-        
-        # # Removing runway elements that are not over the runway
-        # rows = rows[elements_to_keep]
-        # columns = columns[elements_to_keep]
-
-        # # Mark the visited tiles as explored
-        # self.runway_state[rows,columns] = 1
+       
     
     def check_quad_distances(self):
         # Checks the scalar distance from each quad to its neighbours in X and Y ONLY (altitude is ignored)
@@ -670,8 +640,8 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
     
     # Defining the runway element coordinates
     runway_elements = []
-    width_vertices = np.linspace(0, temp_env.RUNWAY_WIDTH, temp_env.RUNWAY_WIDTH_ELEMENTS + 1)
-    length_vertices = np.linspace(0, temp_env.RUNWAY_LENGTH, temp_env.RUNWAY_LENGTH_ELEMENTS + 1)
+    width_vertices = np.linspace(-temp_env.RUNWAY_WIDTH/2, temp_env.RUNWAY_WIDTH/2, temp_env.RUNWAY_WIDTH_ELEMENTS + 1)
+    length_vertices = np.linspace(-temp_env.RUNWAY_LENGTH/2, temp_env.RUNWAY_LENGTH/2, temp_env.RUNWAY_LENGTH_ELEMENTS + 1)
     for i in range(temp_env.RUNWAY_LENGTH_ELEMENTS):
         for j in range(temp_env.RUNWAY_WIDTH_ELEMENTS):
             runway_element_vertices = np.array([[length_vertices[i],width_vertices[j]],

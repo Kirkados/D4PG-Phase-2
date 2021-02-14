@@ -349,7 +349,7 @@ class Environment:
                     # If this element has already been explored, skip it
                     if self.runway_state[j,k] == 0 and quad_line.intersects(self.tile_polygons[j][k]):
                         self.runway_state[j,k] = 1
-                        print("Quad %i traced the line %s and explored runway element length = %i, width = %i with coordinates %s" %(i,list(quad_line.coords),j,k,self.tile_polygons[j][k].bounds))
+                        #print("Quad %i traced the line %s and explored runway element length = %i, width = %i with coordinates %s" %(i,list(quad_line.coords),j,k,self.tile_polygons[j][k].bounds))
             
         # Storing current quad positions for the next timestep
         self.previous_quad_positions = self.quad_positions

@@ -25,12 +25,22 @@ def main():
     parser = argparse.ArgumentParser(description="Guided mode example")
     parser.add_argument('-ids','--quad_ids', nargs='+', help='<Required> IDs of all quads used', required=True)
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
+    parser.add_argument("-L", "--new_length", dest='new_length', default=Settings.RUNWAY_LENGTH, type=float, help="Override the 124 m runway length")
+    parser.add_argument("-W", "--new_width", dest='new_width', default=Settings.RUNWAY_WIDTH, type=float, help="Override the 12.5 m runway width")
     parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
     
+    if args.new_length != Settings.RUNWAY_LENGTH:
+        print("\nOverwriting %.1f m runway length with user-defined %.1f m runway length." %(Settings.RUNWAY_LENGTH,args.new_length))
+    runway_length = args.new_length
+    if args.new_width != Settings.RUNWAY_WIDTH:
+        print("\nOverwriting %.1f m runway width with user-defined %.1f m runway width." %(Settings.RUNWAY_WIDTH,args.new_width))
+    runway_width = args.new_width
+    
     # Communication delay length in timesteps
     COMMUNICATION_DELAY_LENGTH = 0 # timesteps
-    print("\nA simulated communication delay of %.1f seconds is used" %(COMMUNICATION_DELAY_LENGTH*Settings.TIMESTEP))
+    if COMMUNICATION_DELAY_LENGTH > 0:
+        print("\nA simulated communication delay of %.1f seconds is used" %(COMMUNICATION_DELAY_LENGTH*Settings.TIMESTEP))
 
     interface = None
     not_done = True
@@ -41,7 +51,7 @@ def main():
     log_filename = args.log_filename
     max_duration = 100000
     log_placeholder = np.zeros((max_duration, 3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE))
-    i = 0 # for log increment
+    log_counter = 0 # for log increment
     
     # Flag to not average the guidance output
     dont_average_output = args.dont_average_output
@@ -51,6 +61,24 @@ def main():
         print("\n\nDeep guidance output is averaged\n\n")
     
     timestep = Settings.TIMESTEP
+    
+    
+    # Generate Polygons for runway tiles
+    # The size of each runway grid element
+    each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
+    each_runway_width_element  = Settings.RUNWAY_WIDTH/Settings.RUNWAY_WIDTH_ELEMENTS
+    tile_polygons = []
+    for i in range(Settings.RUNWAY_LENGTH_ELEMENTS):
+        this_row = []
+        for j in range(Settings.RUNWAY_WIDTH_ELEMENTS):
+            # make the polygon
+            this_row.append(Polygon([[each_runway_length_element*i     - Settings.RUNWAY_LENGTH/2, each_runway_width_element*j     - Settings.RUNWAY_WIDTH/2],
+                                     [each_runway_length_element*(i+1) - Settings.RUNWAY_LENGTH/2, each_runway_width_element*j     - Settings.RUNWAY_WIDTH/2],
+                                     [each_runway_length_element*(i+1) - Settings.RUNWAY_LENGTH/2, each_runway_width_element*(j+1) - Settings.RUNWAY_WIDTH/2],
+                                     [each_runway_length_element*i     - Settings.RUNWAY_LENGTH/2, each_runway_width_element*(j+1) - Settings.RUNWAY_WIDTH/2]]))
+            
+        tile_polygons.append(this_row)
+    
     
     ### Deep guidance initialization stuff
     tf.reset_default_graph()
@@ -122,13 +150,14 @@ def main():
                     """
 
                     # Extracting position
-                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]
-                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]
+                    #print(rc.X[0], rc.X[0]*Settings.RUNWAY_LENGTH/runway_length, end="")
+                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
+                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway length
                     quad_positions[ quad_number_not_id, 2] =  rc.X[2]
                     
                     # Extracting velocity
-                    quad_velocities[quad_number_not_id, 0] =  rc.V[0]
-                    quad_velocities[quad_number_not_id, 1] = -rc.V[1]
+                    quad_velocities[quad_number_not_id, 0] =  rc.V[0]*Settings.RUNWAY_LENGTH/runway_length
+                    quad_velocities[quad_number_not_id, 1] = -rc.V[1]*Settings.RUNWAY_WIDTH/runway_width
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
 
                     quad_number_not_id += 1
@@ -140,31 +169,54 @@ def main():
                         # Fill it with zeros initially
                         for i in range(COMMUNICATION_DELAY_LENGTH):
                             communication_delay_queue.put([quad_positions, quad_velocities], False)
+                    
+                    # Resetting the initial previous position to be the first position
+                    previous_quad_positions = quad_positions
                         
                         
                 if COMMUNICATION_DELAY_LENGTH > 0:
                     communication_delay_queue.put([quad_positions, quad_velocities], False) # puts the current position and velocity to the bottom of the stack
                     delayed_quad_positions, delayed_quad_velocities = communication_delay_queue.get(False) # grabs the delayed position and velocity.   
                                 
-                # Check runway state
-                # The size of each runway grid element
-                each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
-                each_runway_width_element  = Settings.RUNWAY_WIDTH/Settings.RUNWAY_WIDTH_ELEMENTS
+                ########################
+                ### Check the runway ###
+                ########################
+
+                # Should I be using the normalized???
                 
-                # Which zones is each quad in?
-                rows = np.floor(quad_positions[:,0]/each_runway_length_element).astype(int)
-                columns = np.floor(quad_positions[:,1]/each_runway_width_element).astype(int)
-        
-                # Which zones are actually over the runway?
-                elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS) & (quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (quad_positions[:,2] <= Settings.MAXIMUM_CAMERA_ALTITUDE))
+                # Generate quadrotor LineStrings
+                for i in range(Settings.NUMBER_OF_QUADS):
+                    quad_line = LineString([quad_positions[i,:-1], previous_quad_positions[i,:-1]])
+                    
+                    for j in range(Settings.RUNWAY_LENGTH_ELEMENTS):
+                        for k in range(Settings.RUNWAY_WIDTH_ELEMENTS):                    
+                            # If this element has already been explored, skip it
+                            if runway_state[j,k] == 0 and quad_line.intersects(tile_polygons[j][k]):
+                                runway_state[j,k] = 1
+                                #print("Quad %i traced the line %s and explored runway element length = %i, width = %i with coordinates %s" %(i,list(quad_line.coords),j,k,tile_polygons[j][k].bounds))
+                    
+                # Storing current quad positions for the next timestep
+                previous_quad_positions = quad_positions
+                    
+                # # Check runway state
+                # # The size of each runway grid element
+                # each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
+                # each_runway_width_element  = Settings.RUNWAY_WIDTH/Settings.RUNWAY_WIDTH_ELEMENTS
                 
-                # Removing runway elements that are not over the runway
-                rows = rows[elements_to_keep]
-                columns = columns[elements_to_keep]
+                # # Which zones is each quad in?
+                # rows = np.floor(quad_positions[:,0]/each_runway_length_element).astype(int)
+                # columns = np.floor(quad_positions[:,1]/each_runway_width_element).astype(int)
         
-                # Mark the visited tiles as explored
-                runway_state[rows,columns] = 1
-                #print(runway_state,last_runway_state)
+                # # Which zones are actually over the runway?
+                # elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS) & (quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (quad_positions[:,2] <= Settings.MAXIMUM_CAMERA_ALTITUDE))
+                
+                # # Removing runway elements that are not over the runway
+                # rows = rows[elements_to_keep]
+                # columns = columns[elements_to_keep]
+        
+                # # Mark the visited tiles as explored
+                # runway_state[rows,columns] = 1
+                # #print(runway_state,last_runway_state)
                 
                 if np.any(last_runway_state != runway_state):
                     print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
@@ -215,6 +267,8 @@ def main():
                 # Discarding irrelevant states
                 observations = np.delete(total_states, Settings.IRRELEVANT_STATES, axis = 1)
                 
+                #print("True X: %.1f, Scaled X: %.1f, Normalized X: %.1f"%(rc.X[0], rc.X[0]*Settings.RUNWAY_LENGTH/runway_length, observations[0,0]))
+                
                 # Run processed state through the policy
                 deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:observations}) # deep guidance = [ chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
                 
@@ -256,23 +310,23 @@ def main():
                 total_time = total_time + timestep
                 # Log all input and outputs:
                 t = time.time()-start_time
-                log_placeholder[i,0] = t
-                log_placeholder[i,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitudes.reshape(-1)])
+                log_placeholder[log_counter,0] = t
+                log_placeholder[log_counter,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitudes.reshape(-1)])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[i,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
-                i += 1
+                log_placeholder[log_counter,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
+                log_counter += 1
     
             # If we ended gracefully
             exit()
         
         # If we ended forcefully
-        except (KeyboardInterrupt, SystemExit):            
+        except (KeyboardInterrupt, SystemExit): 
             print('Shutting down...')
             g.shutdown()
             sleep(0.2)
-            print("Saving file as %s.txt..." %(log_filename))
-            with open(log_filename+".txt", 'wb') as f:
-                np.save(f, log_placeholder[:i])
+            print("Saving file as %s.txt..." %(log_filename+"_L"+str(runway_length)+"_W"+str(runway_width)+".txt"))
+            with open(log_filename+"_L"+str(runway_length)+"_W"+str(runway_width)+".txt", 'wb') as f:
+                np.save(f, log_placeholder[:log_counter])
             print("Done!")
             exit()
 

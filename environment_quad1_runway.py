@@ -82,7 +82,7 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = True # True = indoors; False = outdoors
         if self.INDOORS:

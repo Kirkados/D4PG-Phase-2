@@ -18,6 +18,18 @@ from build_neural_networks import BuildActorNetwork
 # Paparazzi guidance api
 from guidance_common import Guidance
 
+def make_C_bI(angle):
+    
+    C_bI = np.array([[ np.cos(angle), np.sin(angle), 0],
+                     [-np.sin(angle), np.cos(angle), 0],
+                     [             0,             0, 1]]) # [3, 3]        
+    return C_bI
+
+def make_C_bI_22(angle):
+    
+    C_bI = np.array([[ np.cos(angle), np.sin(angle)],
+                     [-np.sin(angle), np.cos(angle)]]) # [2, 2]        
+    return C_bI
 
 
 def main():
@@ -29,6 +41,10 @@ def main():
     parser.add_argument("-W", "--new_width", dest='new_width', default=Settings.RUNWAY_WIDTH, type=float, help="Override the 12.5 m runway width")
     parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
+    
+    runway_angle_wrt_north = (156.485-90)*np.pi/180 #[rad]
+    C_bI = make_C_bI(runway_angle_wrt_north) # [3x3] rotation matrix from North (I) to body (tilted runway)
+    C_bI_22 = make_C_bI_22(runway_angle_wrt_north) # [2x2] rotation matrix from North (I) to body (tilted runway)
     
     if args.new_length != Settings.RUNWAY_LENGTH:
         print("\nOverwriting %.1f m runway length with user-defined %.1f m runway length." %(Settings.RUNWAY_LENGTH,args.new_length))
@@ -155,10 +171,19 @@ def main():
                     quad_positions[ quad_number_not_id, 1] = -rc.X[1]*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway length
                     quad_positions[ quad_number_not_id, 2] =  rc.X[2]
                     
+                    # Rotating from runway frame (tilted runway) into inertial frame (North)
+                    #print("Before rotation" , quad_positions[ quad_number_not_id, :])
+                    quad_positions[ quad_number_not_id, :] = np.matmul(C_bI, quad_positions[ quad_number_not_id, :])
+                    #print("Rotated positions" , quad_positions[ quad_number_not_id, :])
+                    
                     # Extracting velocity
                     quad_velocities[quad_number_not_id, 0] =  rc.V[0]*Settings.RUNWAY_LENGTH/runway_length
                     quad_velocities[quad_number_not_id, 1] = -rc.V[1]*Settings.RUNWAY_WIDTH/runway_width
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
+                    
+                    # Rotating from runway frame (tilted runway) into inertial frame (North)
+                    quad_velocities[ quad_number_not_id, :] = np.matmul(C_bI, quad_velocities[ quad_number_not_id, :])
+                    #print("Rotated velocity", quad_velocities)
 
                     quad_number_not_id += 1
                 
@@ -302,6 +327,15 @@ def main():
 #                        altitude_acceleration_command[j] = -0.1
 #                    else:
 #                        altitude_acceleration_command[j] =  0.0
+                    
+                    # Rotate desired deep guidance command from North (I) frame to runway frame (b)
+                    #average_deep_guidance[j,0] = 1
+                    #average_deep_guidance[j,1] = 0
+                    #print("Command before rotating", average_deep_guidance[j,:])
+                    average_deep_guidance[j,:] = np.matmul(C_bI_22.T, average_deep_guidance[j,:])
+                    #print("Command after rotating", average_deep_guidance[j,:])
+                    #raise SystemExit
+
                     if dont_average_output:
                         g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j])
                     else:
@@ -324,7 +358,7 @@ def main():
             print('Shutting down...')
             g.shutdown()
             sleep(0.2)
-            print("Saving file as %s.txt..." %(log_filename+"_L"+str(runway_length)+"_W"+str(runway_width)+".txt"))
+            print("Saving file as %s..." %(log_filename+"_L"+str(runway_length)+"_W"+str(runway_width)+".txt"))
             with open(log_filename+"_L"+str(runway_length)+"_W"+str(runway_width)+".txt", 'wb') as f:
                 np.save(f, log_placeholder[:log_counter])
             print("Done!")

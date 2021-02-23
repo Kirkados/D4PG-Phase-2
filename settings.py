@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'UniformIC_centreRunway_newTiles_Indoor_2quad' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'MoreTimesteps_Outoor_1quad' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
@@ -126,6 +126,7 @@ class Settings:
     TIMESTEP                         = env.TIMESTEP
     MAX_NUMBER_OF_TIMESTEPS          = env.MAX_NUMBER_OF_TIMESTEPS # per episode
     NUMBER_OF_QUADS                  = env.NUMBER_OF_QUADS
+    INDOORS                          = env.INDOORS
     irrelevant_states = []
     for i in range(NUMBER_OF_QUADS):
         for irrelevant_state in env.IRRELEVANT_STATES:

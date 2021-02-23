@@ -82,15 +82,17 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 1 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
-        self.INDOORS                          = True # True = indoors; False = outdoors
+        self.INDOORS                          = False # True = indoors; False = outdoors
         if self.INDOORS:
             self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 4 # [m] in X (North)
+            self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         else:
             self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
-            self.RUNWAY_LENGTH                    = 124 # [m] in X (North)        
+            self.RUNWAY_LENGTH                    = 124 # [m] in X (North)  
+            self.MAX_NUMBER_OF_TIMESTEPS          = 500 # per episode
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
         self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network
@@ -106,7 +108,6 @@ class Environment:
         self.TIMESTEP                         =   0.2 # [s]
         self.DYNAMICS_DELAY                   =   3 # [timesteps of delay] how many timesteps between when an action is commanded and when it is realized
         self.AUGMENT_STATE_WITH_ACTION_LENGTH =   3 # [timesteps] how many timesteps of previous actions should be included in the state. This helps with making good decisions among delayed dynamics.
-        self.MAX_NUMBER_OF_TIMESTEPS          = 300 # per episode
         self.ADDITIONAL_VALUE_INFO            = False # whether or not to include additional reward and value distribution information on the animations
         self.TOP_DOWN_VIEW                    = True # Animation property
         self.SKIP_FAILED_ANIMATIONS           = True # Error the program or skip when animations fail?

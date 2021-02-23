@@ -39,10 +39,14 @@ def main():
     parser.add_argument("-f", "--filename", dest='log_filename', default='log_runway_000', type=str, help="Log file name")
     parser.add_argument("-L", "--new_length", dest='new_length', default=Settings.RUNWAY_LENGTH, type=float, help="Override the 124 m runway length")
     parser.add_argument("-W", "--new_width", dest='new_width', default=Settings.RUNWAY_WIDTH, type=float, help="Override the 12.5 m runway width")
+    parser.add_argument("-alt", "--altitude", dest='altitude', default=2, type=float, help="Override the 2 m first quad altitude")
     parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
     args = parser.parse_args()
     
-    runway_angle_wrt_north = (156.485-90)*np.pi/180 #[rad]
+    if Settings.INDOORS:
+        runway_angle_wrt_north = 0
+    else:
+        runway_angle_wrt_north = (156.485-90)*np.pi/180 #[rad]
     C_bI = make_C_bI(runway_angle_wrt_north) # [3x3] rotation matrix from North (I) to body (tilted runway)
     C_bI_22 = make_C_bI_22(runway_angle_wrt_north) # [2x2] rotation matrix from North (I) to body (tilted runway)
     
@@ -52,6 +56,8 @@ def main():
     if args.new_width != Settings.RUNWAY_WIDTH:
         print("\nOverwriting %.1f m runway width with user-defined %.1f m runway width." %(Settings.RUNWAY_WIDTH,args.new_width))
     runway_width = args.new_width
+    
+    first_quad_altitude = args.altitude
     
     # Communication delay length in timesteps
     COMMUNICATION_DELAY_LENGTH = 0 # timesteps
@@ -146,7 +152,7 @@ def main():
             # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
             last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
-            desired_altitudes = np.linspace(2, 2+Settings.NUMBER_OF_QUADS, Settings.NUMBER_OF_QUADS, endpoint = False)
+            desired_altitudes = np.linspace(first_quad_altitude, first_quad_altitude+Settings.NUMBER_OF_QUADS, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
             while not_done:
                 # TODO: make better frequency managing
@@ -167,8 +173,8 @@ def main():
 
                     # Extracting position
                     #print(rc.X[0], rc.X[0]*Settings.RUNWAY_LENGTH/runway_length, end="")
-                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
-                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway length
+                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]#*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
+                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]#*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway width
                     quad_positions[ quad_number_not_id, 2] =  rc.X[2]
                     
                     # Rotating from runway frame (tilted runway) into inertial frame (North)
@@ -176,14 +182,22 @@ def main():
                     quad_positions[ quad_number_not_id, :] = np.matmul(C_bI, quad_positions[ quad_number_not_id, :])
                     #print("Rotated positions" , quad_positions[ quad_number_not_id, :])
                     
+                    # Scale position after rotating
+                    quad_positions[ quad_number_not_id, 0] = quad_positions[ quad_number_not_id, 0]*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
+                    quad_positions[ quad_number_not_id, 1] = quad_positions[ quad_number_not_id, 1]*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway wodth
+                    
                     # Extracting velocity
-                    quad_velocities[quad_number_not_id, 0] =  rc.V[0]*Settings.RUNWAY_LENGTH/runway_length
-                    quad_velocities[quad_number_not_id, 1] = -rc.V[1]*Settings.RUNWAY_WIDTH/runway_width
+                    quad_velocities[quad_number_not_id, 0] =  rc.V[0]#*Settings.RUNWAY_LENGTH/runway_length
+                    quad_velocities[quad_number_not_id, 1] = -rc.V[1]#*Settings.RUNWAY_WIDTH/runway_width
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
                     
                     # Rotating from runway frame (tilted runway) into inertial frame (North)
                     quad_velocities[ quad_number_not_id, :] = np.matmul(C_bI, quad_velocities[ quad_number_not_id, :])
                     #print("Rotated velocity", quad_velocities)
+                    
+                    # Scale velocities after rotating
+                    quad_velocities[quad_number_not_id, 0] = quad_velocities[quad_number_not_id, 0]*Settings.RUNWAY_LENGTH/runway_length
+                    quad_velocities[quad_number_not_id, 1] = quad_velocities[quad_number_not_id, 1]*Settings.RUNWAY_WIDTH/runway_width
 
                     quad_number_not_id += 1
                 

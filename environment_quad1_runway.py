@@ -179,11 +179,6 @@ class Environment:
         self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES)*self.NUMBER_OF_QUADS # the size of the observation input to the policy
 
-    ###################################
-    ##### Seeding the environment #####
-    ###################################
-    def seed(self, seed):
-        np.random.seed(seed)
 
     ######################################
     ##### Resettings the Environment #####
@@ -194,7 +189,9 @@ class Environment:
                - if use_dynamics = True -> use dynamics
                - if test_time = True -> do not add "exploration noise" to the kinematics or actions
         """        
-
+        # Reset the seed for max randomness
+        np.random.seed()
+        
         # Logging whether it is test time for this episode
         self.test_time = test_time
         
@@ -236,7 +233,8 @@ class Environment:
                 if np.random.uniform(low=0.0,high=1.0) < self.QUAD_FAILURE_PERCENTAGE:
                     self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = self.MAX_NUMBER_OF_TIMESTEPS*self.TIMESTEP))
                     self.quad_to_fail.append(i)
-                    #print("Quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))
+                    if test_time:
+                        print("Test time quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))
         
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
@@ -321,7 +319,7 @@ class Environment:
                 # Force the position and velocity to their 'failed' states
                 self.quad_positions[self.quad_to_fail[i],:]  = self.LOWER_STATE_BOUND_PER_QUAD[:3]
                 self.previous_quad_positions[self.quad_to_fail[i],:] = self.quad_positions[self.quad_to_fail[i],:]
-                self.quad_velocities[self.quad_to_fail[i],:] = self.LOWER_STATE_BOUND_PER_QUAD[3:]
+                self.quad_velocities[self.quad_to_fail[i],:] = 0
 
     def controller(self, actions):
         # This function calculates the control effort based on the state and the

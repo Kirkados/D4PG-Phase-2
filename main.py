@@ -96,12 +96,6 @@ if psutil.cpu_count(logical = False) == 32:
 else:
     config.inter_op_parallelism_threads = 1 # All my other computers have 1
 
-# Set random seeds
-tf.set_random_seed(Settings.RANDOM_SEED)
-np.random.seed(Settings.RANDOM_SEED)
-random.seed(Settings.RANDOM_SEED)
-
-
 ############################################################
 ##### New run or continuing a partially completed one? #####
 ############################################################
@@ -257,8 +251,6 @@ with tf.Session(config = config) as sess:
                 environment = environment_file.Environment(filename, i+1, Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES, Settings.VIDEO_RECORD_FREQUENCY, Settings.MODEL_SAVE_DIRECTORY) # Additional parameters needed for gym
             else:
                 environment = environment_file.Environment()
-            # Set the environment seed
-            environment.seed(Settings.RANDOM_SEED*(i+1))
             # Generate the queue responsible for communicating with the agent
             agent_to_env, env_to_agent = environment.generate_queue()
             # Generate the actor
@@ -272,8 +264,6 @@ with tf.Session(config = config) as sess:
                     environment = environment_file.Environment(filename, i+1, Settings.CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES, Settings.VIDEO_RECORD_FREQUENCY, Settings.MODEL_SAVE_DIRECTORY) # Additional parameters needed for gym
                 else:
                     environment = environment_file.Environment()
-                # Set the environment seed
-                environment.seed(Settings.RANDOM_SEED*(i+1))
                 # Generate the queue responsible for communicating with the agent
                 agent_to_env, env_to_agent = environment.generate_queue()
                 # Generate the actor

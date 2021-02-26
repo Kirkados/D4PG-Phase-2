@@ -229,7 +229,7 @@ def main():
                         # Force the position and velocity to their 'failed' states
                         quad_positions[i,:]  = Settings.LOWER_STATE_BOUND[:3]
                         previous_quad_positions[i,:] = quad_positions[i,:]
-                        quad_velocities[i,:] = Settings.LOWER_STATE_BOUND[3:6]
+                        quad_velocities[i,:] = np.zeros([3])
                                     
                 if COMMUNICATION_DELAY_LENGTH > 0:
                     communication_delay_queue.put([quad_positions, quad_velocities], False) # puts the current position and velocity to the bottom of the stack

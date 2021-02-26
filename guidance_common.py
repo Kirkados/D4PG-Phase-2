@@ -184,12 +184,12 @@ class Guidance(object):
             print("Setting mode to NAV: %s" % msg)
             self._interface.send(msg)
 
-    def goto_ned(self, north, east, down, heading=0.0):
+    def goto_ned(self, north, east, down, heading=0.0, quad_id = None):
         """
         goto a local NorthEastDown position in meters (if already in GUIDED mode)
         """
         msg = PprzMessage("datalink", "GUIDED_SETPOINT_NED")
-        msg['ac_id'] = self.ac_id
+        msg['ac_id'] = quad_id
         msg['flags'] = 0x00
         msg['x'] = north
         msg['y'] = east

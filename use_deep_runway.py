@@ -41,7 +41,11 @@ def main():
     parser.add_argument("-W", "--new_width", dest='new_width', default=Settings.RUNWAY_WIDTH, type=float, help="Override the 12.5 m runway width")
     parser.add_argument("-alt", "--altitude", dest='altitude', default=2, type=float, help="Override the 2 m first quad altitude")
     parser.add_argument("-no_avg", "--dont_average_output", dest="dont_average_output", action="store_true")
+    parser.add_argument("-fail", "--failure_times", nargs='+', dest="failure_times",default=[9999.9])
     args = parser.parse_args()
+
+    failure_times = list(map(float, args.failure_times))
+  
     
     if Settings.INDOORS:
         runway_angle_wrt_north = 0
@@ -66,6 +70,8 @@ def main():
 
     interface = None
     not_done = True
+    
+    failure_acknowledged = np.tile(False,len(failure_times))
     
     # converting this input from a list of strings to a list of ints
     all_ids = list(map(int, args.quad_ids))
@@ -201,6 +207,8 @@ def main():
 
                     quad_number_not_id += 1
                 
+                
+                
                 # Resetting the action delay queue 
                 if total_time == 0.0:                        
                     if COMMUNICATION_DELAY_LENGTH > 0:
@@ -211,8 +219,18 @@ def main():
                     
                     # Resetting the initial previous position to be the first position
                     previous_quad_positions = quad_positions
-                        
-                        
+                
+                
+                # Checking if a quadrotor has failed
+                for i in range(len(failure_times)):
+                    if (total_time > failure_times[i]) and (not failure_acknowledged[i]):
+                        if total_time == failure_times[i]:
+                            print("\n\nQuad %i has failed!\n\n"%i)
+                        # Force the position and velocity to their 'failed' states
+                        quad_positions[i,:]  = Settings.LOWER_STATE_BOUND[:3]
+                        previous_quad_positions[i,:] = quad_positions[i,:]
+                        quad_velocities[i,:] = Settings.LOWER_STATE_BOUND[3:6]
+                                    
                 if COMMUNICATION_DELAY_LENGTH > 0:
                     communication_delay_queue.put([quad_positions, quad_velocities], False) # puts the current position and velocity to the bottom of the stack
                     delayed_quad_positions, delayed_quad_velocities = communication_delay_queue.get(False) # grabs the delayed position and velocity.   
@@ -220,9 +238,6 @@ def main():
                 ########################
                 ### Check the runway ###
                 ########################
-
-                # Should I be using the normalized???
-                
                 # Generate quadrotor LineStrings
                 for i in range(Settings.NUMBER_OF_QUADS):
                     quad_line = LineString([quad_positions[i,:-1], previous_quad_positions[i,:-1]])
@@ -326,6 +341,18 @@ def main():
                 
                 # Get each quad to accelerate appropriately
                 for j in range(Settings.NUMBER_OF_QUADS):
+                    
+                    # Checking if a quadrotor has failed
+                    for i in range(len(failure_times)):                            
+                        if (total_time > failure_times[i]) and (i==j):
+                            if np.abs(total_time - failure_times[i]) < 0.5:
+                                print("\n\nSimulated failure of quad %i\n\n"%(all_ids[i]))
+                            skip_this_one = True
+                            break
+                        else:
+                            skip_this_one = False
+                    if skip_this_one:
+                        continue
                     
                     # Using a separate PD controller to command the altitude.
                     # Each quad is assigned a different altitude to remain at.

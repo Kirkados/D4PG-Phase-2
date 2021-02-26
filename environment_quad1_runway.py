@@ -85,6 +85,7 @@ class Environment:
         self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = False # True = indoors; False = outdoors
+        self.QUAD_FAILURE_PERCENTAGE          = 0.5 # [0-1] fraction of the episodes where a quadrotor failure will occur.
         if self.INDOORS:
             self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 4 # [m] in X (North)
@@ -227,6 +228,16 @@ class Environment:
         # Resetting the time
         self.time = 0.
         
+        # Decide whether to have one quad fail and at what time
+        if self.NUMBER_OF_QUADS > 1:
+            self.time_for_quad_failure = []
+            self.quad_to_fail = []
+            for i in range(self.NUMBER_OF_QUADS - 1):                                
+                if np.random.uniform(low=0.0,high=1.0) < self.QUAD_FAILURE_PERCENTAGE:
+                    self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = self.MAX_NUMBER_OF_TIMESTEPS*self.TIMESTEP))
+                    self.quad_to_fail.append(i)
+                    #print("Quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))
+        
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
         self.previous_runway_value = 0
@@ -284,6 +295,10 @@ class Environment:
         # Done the differences between the kinematics and dynamics
         # Increment the timestep
         self.time += self.TIMESTEP
+        
+        # Check if any quads have failed
+        if self.NUMBER_OF_QUADS > 1:
+            self.check_for_quad_failures()
                 
         # Update the state of the runway
         self.check_runway()
@@ -296,6 +311,17 @@ class Environment:
 
         # Return the (reward, done)
         return reward, done
+    
+    def check_for_quad_failures(self):
+        # Checks and enforces a quad failure if it exists
+        for i in range(len(self.time_for_quad_failure)):                
+            if self.time > self.time_for_quad_failure[i]:
+                #print("Quad %i has failed at time %.1f" %(self.quad_to_fail[i], self.time))
+                
+                # Force the position and velocity to their 'failed' states
+                self.quad_positions[self.quad_to_fail[i],:]  = self.LOWER_STATE_BOUND_PER_QUAD[:3]
+                self.previous_quad_positions[self.quad_to_fail[i],:] = self.quad_positions[self.quad_to_fail[i],:]
+                self.quad_velocities[self.quad_to_fail[i],:] = self.LOWER_STATE_BOUND_PER_QUAD[3:]
 
     def controller(self, actions):
         # This function calculates the control effort based on the state and the

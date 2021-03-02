@@ -231,7 +231,7 @@ class Environment:
             self.quad_to_fail = []
             for i in range(self.NUMBER_OF_QUADS - 1):                                
                 if np.random.uniform(low=0.0,high=1.0) < self.QUAD_FAILURE_PERCENTAGE:
-                    self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = self.MAX_NUMBER_OF_TIMESTEPS*self.TIMESTEP))
+                    self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
                     self.quad_to_fail.append(i)
                     if test_time:
                         print("Test time quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))

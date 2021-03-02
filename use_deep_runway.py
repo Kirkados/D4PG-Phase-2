@@ -158,7 +158,7 @@ def main():
             # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
             last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
-            desired_altitudes = np.linspace(first_quad_altitude+Settings.NUMBER_OF_QUADS, first_quad_altitude, Settings.NUMBER_OF_QUADS, endpoint = False)
+            desired_altitudes = np.linspace(first_quad_altitude+Settings.NUMBER_OF_QUADS*2, first_quad_altitude, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
             while not_done:
                 # TODO: make better frequency managing

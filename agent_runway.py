@@ -329,7 +329,10 @@ class Agent:
                     # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
                     # data per episode than before! Log data only if it is not test time data
                     if not test_time:                        
-                        for i in range(Settings.NUMBER_OF_QUADS):                        
+                        for i in range(Settings.NUMBER_OF_QUADS):   
+                            # If this quad has failed, don't add its experience to the buffer
+                            if (observations[i,0] == -1) and (observations[i,1] == -1):                                
+                                continue
                             self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
 
                     # If this episode is being rendered, log the state for rendering later
@@ -366,7 +369,10 @@ class Agent:
                         # I'll put each one of their observations in the replay buffer separately. This way, I'll be generating more
                         # data per episode than before! Log data only if it is not test time data
                         if not test_time:                        
-                            for i in range(Settings.NUMBER_OF_QUADS):                        
+                            for i in range(Settings.NUMBER_OF_QUADS): 
+                                # If this quad has failed, don't add its experience to the buffer
+                                if (observations[i,0] == -1) and (observations[i,1] == -1):                                
+                                    continue
                                 self.replay_buffer.add((observations_0[i,:], actions_0[i,:], n_step_rewards[i], next_observations[i,:], done, discount_factor))
     
                         # If this episode is being rendered, log the state for rendering later

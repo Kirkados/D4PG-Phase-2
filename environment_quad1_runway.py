@@ -69,7 +69,6 @@ import matplotlib.animation as animation
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection # to shade the runway in a 3D plot
-from mpl_toolkits.mplot3d import Axes3D
 
 """
 Note: 
@@ -82,7 +81,8 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 3 # Number of quadrotors working together to complete the task
+        self.THREE_QUAD_GENERIC_MODEL         = True # whether to train a model that works on 3/2/1 quads equally well, while accounting for all failures
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = False # True = indoors; False = outdoors
         self.QUAD_FAILURE_PERCENTAGE          = 0.5 # [0-1] fraction of the episodes where a quadrotor failure will occur.
@@ -229,12 +229,60 @@ class Environment:
         if self.NUMBER_OF_QUADS > 1:
             self.time_for_quad_failure = []
             self.quad_to_fail = []
-            for i in range(self.NUMBER_OF_QUADS - 1):                                
-                if np.random.uniform(low=0.0,high=1.0) < self.QUAD_FAILURE_PERCENTAGE:
-                    self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
-                    self.quad_to_fail.append(i)
+            if self.THREE_QUAD_GENERIC_MODEL:
+                scenario = np.random.uniform(low = 0.0, high = 1.0)
+                if scenario < 1/6:
+                    ## 1 quad only, no fails ##
+                    # quad 1 fails at t=0
+                    self.time_for_quad_failure.append(0)
+                    self.quad_to_fail.append(0)
+                    # quad 2 fails at t=0
+                    self.time_for_quad_failure.append(0)
+                    self.quad_to_fail.append(1)
                     if test_time:
-                        print("Test time quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))
+                        print("1 quad alone")
+                elif scenario < 1/2:
+                    ## 2 quads, 50% chance of quad0 failing ##
+                    if np.random.uniform(low=0.0,high=1.0) < 0.5:
+                        self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
+                        self.quad_to_fail.append(0)
+                        if test_time:
+                            print("2 quads, but quad %i will fail at %.1f"%(0, self.time_for_quad_failure[0]))
+                    else:
+                        if test_time:
+                            print("2 quads no failures")
+                    # quad 2 fails at t=0
+                    self.time_for_quad_failure.append(0)
+                    self.quad_to_fail.append(1)
+                else:
+                    ## 3 quads, 33% change of quad0 failing & 33% change of quad0 & quad1 failing
+                    sub_scenario = np.random.uniform(low = 0.0, high = 1.0)
+                    if sub_scenario < 1/3:
+                        # 1 quad fails!
+                        self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
+                        self.quad_to_fail.append(0)
+                        if test_time:
+                            print("3 quads, but quad%i will fail at %.1f"%(0, self.time_for_quad_failure[0]))
+                    elif sub_scenario < 2/3:
+                        # 2 quads fail!
+                        self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
+                        self.quad_to_fail.append(0)
+                        self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
+                        self.quad_to_fail.append(1)
+                        if test_time:
+                            print("3 quads, but quad %i will fail at %.1f and quad %i will fail at %.1f"%(0, self.time_for_quad_failure[0], 1, self.time_for_quad_failure[1]))
+                    else:
+                        if test_time:
+                            print("3 quads no failures")
+                        # all 3 quads survive!!
+            else:
+                # not building a generic model
+                for i in range(self.NUMBER_OF_QUADS - 1):                                
+                    if np.random.uniform(low=0.0,high=1.0) < self.QUAD_FAILURE_PERCENTAGE:
+                        self.time_for_quad_failure.append(np.random.uniform(low = 0.0, high = 150*self.TIMESTEP)) # 150 timesteps seems to be the steady-state value
+                        self.quad_to_fail.append(i)
+                        if test_time:
+                            print("Test time quad %i will fail at %.1f"%(i, self.time_for_quad_failure[i]))
         
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
@@ -392,6 +440,11 @@ class Environment:
             # Check all the other quads
             for j in range(i + 1, self.NUMBER_OF_QUADS + i):
                 this_distance = np.linalg.norm([self.quad_positions[i,0] - self.quad_positions[j % self.NUMBER_OF_QUADS,0], self.quad_positions[i,1] - self.quad_positions[j % self.NUMBER_OF_QUADS,1]])
+                
+                # check if the minimum distance is because two quads are failed near each other
+                if ((self.quad_positions[i,0] == self.LOWER_STATE_BOUND_PER_QUAD[0]) and (self.quad_positions[i,1] == self.LOWER_STATE_BOUND_PER_QUAD[1])) or ((self.quad_positions[j % self.NUMBER_OF_QUADS,0] == self.LOWER_STATE_BOUND_PER_QUAD[0]) and (self.quad_positions[j % self.NUMBER_OF_QUADS,1] == self.LOWER_STATE_BOUND_PER_QUAD[1])):
+                    # one of these quads is failed, do not count this distance!
+                    this_distance = 1000
 
                 # Replace the minimum distance with this if it's smaller
                 if this_distance < minimum_distances[i]:

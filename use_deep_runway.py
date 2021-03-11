@@ -178,15 +178,12 @@ def main():
                     """
 
                     # Extracting position
-                    #print(rc.X[0], rc.X[0]*Settings.RUNWAY_LENGTH/runway_length, end="")
-                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]#*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
-                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]#*Settings.RUNWAY_WIDTH/runway_width # scaling to the new runway width
+                    quad_positions[ quad_number_not_id, 0] =  rc.X[0]
+                    quad_positions[ quad_number_not_id, 1] = -rc.X[1]
                     quad_positions[ quad_number_not_id, 2] =  rc.X[2]
                     
-                    # Rotating from runway frame (tilted runway) into inertial frame (North)
-                    #print("Before rotation" , quad_positions[ quad_number_not_id, :])
+                    # Rotating from Inertial frame (NED frame) into body frame (runway frame)
                     quad_positions[ quad_number_not_id, :] = np.matmul(C_bI, quad_positions[ quad_number_not_id, :])
-                    #print("Rotated positions" , quad_positions[ quad_number_not_id, :])
                     
                     # Scale position after rotating
                     quad_positions[ quad_number_not_id, 0] = quad_positions[ quad_number_not_id, 0]*Settings.RUNWAY_LENGTH/runway_length # scaling to the new runway length
@@ -197,9 +194,8 @@ def main():
                     quad_velocities[quad_number_not_id, 1] = -rc.V[1]#*Settings.RUNWAY_WIDTH/runway_width
                     quad_velocities[quad_number_not_id, 2] =  rc.V[2]
                     
-                    # Rotating from runway frame (tilted runway) into inertial frame (North)
+                    # Rotating from Inertial frame (NED frame) into body frame (runway frame)
                     quad_velocities[ quad_number_not_id, :] = np.matmul(C_bI, quad_velocities[ quad_number_not_id, :])
-                    #print("Rotated velocity", quad_velocities)
                     
                     # Scale velocities after rotating
                     quad_velocities[quad_number_not_id, 0] = quad_velocities[quad_number_not_id, 0]*Settings.RUNWAY_LENGTH/runway_length
@@ -235,9 +231,9 @@ def main():
                     communication_delay_queue.put([quad_positions, quad_velocities], False) # puts the current position and velocity to the bottom of the stack
                     delayed_quad_positions, delayed_quad_velocities = communication_delay_queue.get(False) # grabs the delayed position and velocity.   
                                 
-                ########################
-                ### Check the runway ###
-                ########################
+                ##############################################################
+                ### Check the runway for new tiles that have been explored ###
+                ##############################################################
                 # Generate quadrotor LineStrings
                 for i in range(Settings.NUMBER_OF_QUADS):
                     quad_line = LineString([quad_positions[i,:-1], previous_quad_positions[i,:-1]])
@@ -251,27 +247,8 @@ def main():
                     
                 # Storing current quad positions for the next timestep
                 previous_quad_positions = quad_positions
-                    
-                # # Check runway state
-                # # The size of each runway grid element
-                # each_runway_length_element = Settings.RUNWAY_LENGTH/Settings.RUNWAY_LENGTH_ELEMENTS
-                # each_runway_width_element  = Settings.RUNWAY_WIDTH/Settings.RUNWAY_WIDTH_ELEMENTS
                 
-                # # Which zones is each quad in?
-                # rows = np.floor(quad_positions[:,0]/each_runway_length_element).astype(int)
-                # columns = np.floor(quad_positions[:,1]/each_runway_width_element).astype(int)
-        
-                # # Which zones are actually over the runway?
-                # elements_to_keep = np.array((rows >= 0) & (rows < Settings.RUNWAY_LENGTH_ELEMENTS) & (columns >= 0) & (columns < Settings.RUNWAY_WIDTH_ELEMENTS) & (quad_positions[:,2] >= Settings.MINIMUM_CAMERA_ALTITUDE) & (quad_positions[:,2] <= Settings.MAXIMUM_CAMERA_ALTITUDE))
-                
-                # # Removing runway elements that are not over the runway
-                # rows = rows[elements_to_keep]
-                # columns = columns[elements_to_keep]
-        
-                # # Mark the visited tiles as explored
-                # runway_state[rows,columns] = 1
-                # #print(runway_state,last_runway_state)
-                
+                # Print if a new tile has been explored
                 if np.any(last_runway_state != runway_state):
                     print("Runway elements discovered %i/%i" %(np.sum(runway_state), Settings.RUNWAY_LENGTH_ELEMENTS*Settings.RUNWAY_WIDTH_ELEMENTS))
                     
@@ -320,11 +297,9 @@ def main():
 
                 # Discarding irrelevant states
                 observations = np.delete(total_states, Settings.IRRELEVANT_STATES, axis = 1)
-                
-                #print("True X: %.1f, Scaled X: %.1f, Normalized X: %.1f"%(rc.X[0], rc.X[0]*Settings.RUNWAY_LENGTH/runway_length, observations[0,0]))
-                
+
                 # Run processed state through the policy
-                deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:observations}) # deep guidance = [ chaser_x_acceleration [north], chaser_y_acceleration [west], chaser_z_acceleration [up] ]
+                deep_guidance = sess.run(actor.action_scaled, feed_dict={state_placeholder:observations}) # deep guidance = [ chaser_x_acceleration [runway north], chaser_y_acceleration [runway west], chaser_z_acceleration [up] ]
                 
                 # Adding the action taken to the past_action log
                 if Settings.AUGMENT_STATE_WITH_ACTION_LENGTH > 0:
@@ -332,8 +307,11 @@ def main():
 
                 # Limit guidance commands if velocity is too high!
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
-                for j in range(Settings.NUMBER_OF_QUADS):              
-                    deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))] = 0 
+                for j in range(Settings.NUMBER_OF_QUADS):
+                    #print(quad_velocities[j,0:2], (np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2])), "Unsaturated: ", deep_guidance, end=' ')
+                    deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))] = -1.5*np.sign(deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))])
+                    #print("Saturated: ", deep_guidance, end =' ')
+                    
         
                 average_deep_guidance = (last_deep_guidance + deep_guidance)/2.0
                 last_deep_guidance = deep_guidance
@@ -354,29 +332,15 @@ def main():
                     if skip_this_one:
                         continue
                     
-                    # Using a separate PD controller to command the altitude.
                     # Each quad is assigned a different altitude to remain at.
                     desired_altitude = desired_altitudes[j]
-#                    altitude_error = desired_altitude - quad_positions[j,2]
-#                    velocity_error = 0.0 - quad_velocities[j,2]
-#                    
-#                    altitude_acceleration_command[j] = np.clip(0.5*altitude_error + 1.0*velocity_error,-0.1,0.1)
-#                    
-#                    if quad_positions[j,2] < 1.5+j:
-#                        altitude_acceleration_command[j] =  0.1
-#                    elif quad_positions[j,2] > 2.5+j:
-#                        altitude_acceleration_command[j] = -0.1
-#                    else:
-#                        altitude_acceleration_command[j] =  0.0
-                    
-                    # Rotate desired deep guidance command from North (I) frame to runway frame (b)
-                    #average_deep_guidance[j,0] = 1
-                    #average_deep_guidance[j,1] = 0
-                    #print("Command before rotating", average_deep_guidance[j,:])
-                    average_deep_guidance[j,:] = np.matmul(C_bI_22.T, average_deep_guidance[j,:])
-                    #print("Command after rotating", average_deep_guidance[j,:])
-                    #raise SystemExit
 
+                    # Rotate desired deep guidance command from body frame (runway frame) frame to inertial frame (NED frame)
+                    #print("Unrotated average: ", average_deep_guidance)
+                    average_deep_guidance[j,:] = np.matmul(C_bI_22.T, average_deep_guidance[j,:])
+                    #print("Rotated average: ", average_deep_guidance)
+                    
+                    
                     if dont_average_output:
                         g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j])
                     else:

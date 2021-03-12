@@ -309,7 +309,7 @@ def main():
                 # Checking whether our velocity is too large AND the acceleration is trying to increase said velocity... in which case we set the desired_linear_acceleration to zero.
                 for j in range(Settings.NUMBER_OF_QUADS):
                     #print(quad_velocities[j,0:2], (np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2])), "Unsaturated: ", deep_guidance, end=' ')
-                    deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))] = -1.5*np.sign(deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))])
+                    deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))] = -2*np.sign(deep_guidance[j,(np.abs(quad_velocities[j,0:2]) > Settings.VELOCITY_LIMIT) & (np.sign(deep_guidance[j,:]) == np.sign(quad_velocities[j,0:2]))])
                     #print("Saturated: ", deep_guidance, end =' ')
                     
         

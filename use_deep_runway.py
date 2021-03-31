@@ -73,12 +73,14 @@ def main():
     
     failure_acknowledged = np.tile(False,len(failure_times))
     
+    average_deep_guidance_NED = np.zeros([Settings.NUMBER_OF_QUADS, Settings.ACTION_SIZE])
+    
     # converting this input from a list of strings to a list of ints
     all_ids = list(map(int, args.quad_ids))
     
     log_filename = args.log_filename
     max_duration = 100000
-    log_placeholder = np.zeros((max_duration, 3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE))
+    log_placeholder = np.zeros((max_duration, 3*Settings.NUMBER_OF_QUADS + 1 + Settings.TOTAL_STATE_SIZE + 6))
     log_counter = 0 # for log increment
     
     # Flag to not average the guidance output
@@ -290,6 +292,8 @@ def main():
                 
                 # Concatenating the runway to the augmented state
                 total_states = np.concatenate([total_states, np.tile(runway_state.reshape(-1),(Settings.NUMBER_OF_QUADS,1))], axis = 1)
+                
+                total_state_to_log = total_states[0,:]
 
                 # Normalize the state
                 if Settings.NORMALIZE_STATE:
@@ -337,22 +341,22 @@ def main():
 
                     # Rotate desired deep guidance command from body frame (runway frame) frame to inertial frame (NED frame)
                     #print("Unrotated average: ", average_deep_guidance)
-                    average_deep_guidance[j,:] = np.matmul(C_bI_22.T, average_deep_guidance[j,:])
+                    average_deep_guidance_NED[j,:] = np.matmul(C_bI_22.T, average_deep_guidance[j,:])
                     #print("Rotated average: ", average_deep_guidance)
                     
                     
                     if dont_average_output:
                         g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j])
                     else:
-                        g.accelerate(north = average_deep_guidance[j,0], east = -average_deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j]) # Averaged        
+                        g.accelerate(north = average_deep_guidance_NED[j,0], east = -average_deep_guidance_NED[j,1], down = desired_altitude, quad_id = g.ids[j]) # Averaged        
                 
                 total_time = total_time + timestep
                 # Log all input and outputs:
                 t = time.time()-start_time
                 log_placeholder[log_counter,0] = t
-                log_placeholder[log_counter,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([deep_guidance.reshape(-1), desired_altitudes.reshape(-1)])
+                log_placeholder[log_counter,1:3*Settings.NUMBER_OF_QUADS + 1] = np.concatenate([average_deep_guidance.reshape(-1), desired_altitudes.reshape(-1)])
                 # log_placeholder[i,5:8] = deep_guidance_xf, deep_guidance_yf, deep_guidance_zf
-                log_placeholder[log_counter,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.OBSERVATION_SIZE] = observations[0,:]
+                log_placeholder[log_counter,3*Settings.NUMBER_OF_QUADS + 1:3*Settings.NUMBER_OF_QUADS + 1 + Settings.TOTAL_STATE_SIZE + 6] = total_state_to_log
                 log_counter += 1
     
             # If we ended gracefully

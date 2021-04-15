@@ -164,7 +164,7 @@ def main():
                 
             while not_done:
                 # TODO: make better frequency managing
-                sleep(timestep)                
+                sleep(timestep)
                 
                 # Initializing quadrotor positions and velocities
                 quad_positions = np.zeros([Settings.NUMBER_OF_QUADS, 3]) 

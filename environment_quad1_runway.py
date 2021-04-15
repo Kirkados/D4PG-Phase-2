@@ -81,11 +81,11 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 5 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
         self.THREE_QUAD_GENERIC_MODEL         = False # whether to train a model that works on 3/2/1 quads equally well, while accounting for all failures
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = False # True = indoors; False = outdoors
-        self.QUAD_FAILURE_PERCENTAGE          = 0.0 # [0-1] fraction of the episodes where a quadrotor failure will occur.
+        self.QUAD_FAILURE_PERCENTAGE          = 0.5 # [0-1] fraction of the episodes where a quadrotor failure will occur.
         if self.INDOORS:
             self.RUNWAY_WIDTH                     = 4 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 4 # [m] in X (North)
@@ -144,13 +144,13 @@ class Environment:
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  3. + self.RUNWAY_LENGTH/2,  3. + self.RUNWAY_WIDTH/2, 10.,  self.VELOCITY_LIMIT,  self.VELOCITY_LIMIT,  self.VELOCITY_LIMIT]) # [m, m, m, m/s, m/s, m/s]
         
         else:
-            self.VELOCITY_LIMIT                   = 10 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
+            self.VELOCITY_LIMIT                   = 5 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap
             self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
             self.MAXIMUM_CAMERA_ALTITUDE          = 2000 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
             self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
             self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
-            self.LOWER_ACTION_BOUND               = np.array([-3.0, -3.0]) # [m/s^2, m/s^2, m/s^2]
-            self.UPPER_ACTION_BOUND               = np.array([ 3.0,  3.0]) # [m/s^2, m/s^2, m/s^2]
+            self.LOWER_ACTION_BOUND               = np.array([-2.5, -2.5]) # [m/s^2, m/s^2, m/s^2]
+            self.UPPER_ACTION_BOUND               = np.array([ 2.5,  2.5]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10. - self.RUNWAY_LENGTH/2, -10. - self.RUNWAY_WIDTH/2,  0., -self.VELOCITY_LIMIT, -self.VELOCITY_LIMIT, -self.VELOCITY_LIMIT]) # [m, m, m, m/s, m/s, m/s]
             self.UPPER_STATE_BOUND_PER_QUAD       = np.array([  10. + self.RUNWAY_LENGTH/2,  10. + self.RUNWAY_WIDTH/2, 20.,  self.VELOCITY_LIMIT,  self.VELOCITY_LIMIT,  self.VELOCITY_LIMIT]) # [m, m, m, m/s, m/s, m/s]      
             

@@ -27,7 +27,7 @@ for i in range(length_elements):
     plt.plot([-62,62],[-12.5/2+12.5/2*2/length_elements*i,-12.5/2+12.5/2*2/length_elements*i]) 
     
     
-for file in glob.glob("*.txt"):        
+for file in glob.glob("*1q_1*.txt"):        
     
     log_filename = file
     data = np.load(log_filename)
@@ -51,6 +51,13 @@ for file in glob.glob("*.txt"):
     print("This flight took: %.1f seconds" %t[-1])
     if t[-1] < 2000.52:
         time_to_solves.append(t[-1])
+    
+    # Plotting the velocity and acceleration curve to look for delays
+    plt.figure()
+    plt.plot(t, data[:,7], '-bo', label='Vx')
+    plt.plot(t, data[:,1], '-ko', label='Ax_command')
+    plt.legend()
+    plt.grid()
     
     #print(np.max(np.diff(t)))
     #print(np.diff(data[:,7]))

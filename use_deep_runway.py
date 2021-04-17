@@ -347,6 +347,8 @@ def main():
                     
                     if dont_average_output:
                         g.accelerate(north = deep_guidance[j,0], east = -deep_guidance[j,1], down = desired_altitude, quad_id = g.ids[j])
+                        print("The no_avg setting is broken")
+                        raise SystemExit
                     else:
                         g.accelerate(north = average_deep_guidance_NED[j,0], east = -average_deep_guidance_NED[j,1], down = desired_altitude, quad_id = g.ids[j]) # Averaged        
                 

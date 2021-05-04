@@ -198,7 +198,7 @@ class Agent:
             
             # Concatenating the runway to the augmented state
             total_augmented_states = np.concatenate([total_augmented_states, np.tile(runway_state.reshape(-1),(Settings.NUMBER_OF_QUADS,1))], axis = 1)
-
+            
             # Calculating the noise scale for this episode. The noise scale
             # allows for changing the amount of noise added to the actor during training.
             if test_time:

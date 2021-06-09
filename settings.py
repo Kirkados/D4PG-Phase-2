@@ -16,7 +16,7 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = 'C_2quad_nofail' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'C_2quad_outdoors_nofail' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True

@@ -181,6 +181,15 @@ class Environment:
         self.UPPER_STATE_BOUND                = np.concatenate([np.tile(self.UPPER_STATE_BOUND_PER_QUAD, self.NUMBER_OF_QUADS), np.tile(self.UPPER_ACTION_BOUND, self.AUGMENT_STATE_WITH_ACTION_LENGTH),  np.ones(self.RUNWAY_STATE_SIZE)]) # upper bound for each element of TOTAL_STATE        
         self.OBSERVATION_SIZE                 = self.TOTAL_STATE_SIZE - len(self.IRRELEVANT_STATES)*self.NUMBER_OF_QUADS # the size of the observation input to the policy
 
+        # A list of all the tiles that rewards should not be returned for
+        if self.RUNWAY_SHAPE == 'R':
+            self.blank_tiles = []
+            
+        elif self.RUNWAY_SHAPE == 'L':
+            self.blank_tiles = list(([2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1]))
+            
+        elif self.RUNWAY_SHAPE == 'C':                
+            self.blank_tiles = list(([2,0],[3,0],[4,0],[5,0],[2,1],[3,1],[4,1],[5,1]))
 
     ######################################
     ##### Resettings the Environment #####
@@ -288,23 +297,13 @@ class Environment:
         
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
-        
-        # A list of all the tiles that rewards should not be returned for
-        if self.RUNWAY_SHAPE == 'R':
-            blank_tiles = []
-            
-        elif self.RUNWAY_SHAPE == 'L':
-            blank_tiles = list(([2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3]))
-            
-        elif self.RUNWAY_SHAPE == 'C':                
-            blank_tiles = list(([2,2],[3,2],[4,2],[5,2],[2,3],[3,3],[4,3],[5,3]))
-            
+                    
         # Assign tiles we don't care about to 1 (meaning they won't give any reward)
-        for i in range(len(blank_tiles)):
-            self.runway_state[blank_tiles[i][0],blank_tiles[i][1]] = 1
+        for i in range(len(self.blank_tiles)):
+            self.runway_state[self.blank_tiles[i][0],self.blank_tiles[i][1]] = 1
         
         # Pre-loading the previous runway value with the initial value so rewards won't be received for the pseudo-already-explored tiles
-        self.previous_runway_value = len(blank_tiles)
+        self.previous_runway_value = len(self.blank_tiles)
         
         # Resetting the action delay queue        
         if self.DYNAMICS_DELAY > 0:
@@ -747,14 +746,36 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
                                                 [length_vertices[i+1],width_vertices[j]],
                                                 [length_vertices[i],width_vertices[j]]])
             runway_elements.append(runway_element_vertices)
-    full_runway = np.array([[length_vertices[0],width_vertices[0]],
-                            [length_vertices[0],width_vertices[-1]],
-                            [length_vertices[-1],width_vertices[-1]],
-                            [length_vertices[-1],width_vertices[0]],
-                            [length_vertices[0],width_vertices[0]]])
+    if temp_env.RUNWAY_SHAPE == 'R':
+        full_runway = np.array([[length_vertices[0],width_vertices[0]],
+                                [length_vertices[0],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[0]],
+                                [length_vertices[0],width_vertices[0]]])
+        
+    elif temp_env.RUNWAY_SHAPE == 'L':
+        full_runway = np.array([[length_vertices[0],width_vertices[0]],
+                                [length_vertices[0],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[2]],
+                                [length_vertices[2],width_vertices[2]],
+                                [length_vertices[2],width_vertices[0]],
+                                [length_vertices[0],width_vertices[0]]])
+    
+    elif temp_env.RUNWAY_SHAPE == 'C':
+        full_runway = np.array([[length_vertices[0],width_vertices[0]],
+                                [length_vertices[0],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[-1]],
+                                [length_vertices[-1],width_vertices[0]],
+                                [length_vertices[-3],width_vertices[0]],
+                                [length_vertices[-3],width_vertices[2]],
+                                [length_vertices[2],width_vertices[2]],
+                                [length_vertices[2],width_vertices[0]],
+                                [length_vertices[0],width_vertices[0]]])
+    
     runway_plot, = subfig1.plot([], [], [], color = 'k', linestyle = '-', linewidth = 3)
     runway_plot.set_data(full_runway[:,0], full_runway[:,1])
-    runway_plot.set_3d_properties(np.zeros(5)) 
+    runway_plot.set_3d_properties(np.zeros(len(full_runway))) 
 
     # Defining plotting objects that change each frame
     quad_bodies = []
@@ -786,7 +807,11 @@ def render(states, actions, instantaneous_reward_log, cumulative_reward_log, cri
         if frame > 0:
             last_runway_state = states[frame-1,0,-temp_env.RUNWAY_STATE_SIZE:]
         else:
-            last_runway_state = np.zeros(len(runway_state))
+            last_runway_state = np.zeros([temp_env.RUNWAY_LENGTH_ELEMENTS, temp_env.RUNWAY_WIDTH_ELEMENTS])
+            # Assign tiles we don't care about to 1 (meaning they won't give any reward)
+            for i in range(len(temp_env.blank_tiles)):
+                last_runway_state[temp_env.blank_tiles[i][0],temp_env.blank_tiles[i][1]] = 1
+            last_runway_state = last_runway_state.reshape(-1)            
             
         for i in range(len(runway_state)):
             # Only update the runway if it's changed

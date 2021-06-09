@@ -81,7 +81,8 @@ class Environment:
         ##################################
         ##### Environment Properties #####
         ##################################
-        self.NUMBER_OF_QUADS                  = 12 # Number of quadrotors working together to complete the task
+        self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
+        self.RUNWAY_SHAPE                     = 'C' # 'C' = C-shape; 'L' = L-shape; 'R' = regular rectangle
         self.THREE_QUAD_GENERIC_MODEL         = False # whether to train a model that works on 3/2/1 quads equally well, while accounting for all failures
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = False # True = indoors; False = outdoors
@@ -148,8 +149,8 @@ class Environment:
             self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
             self.MAXIMUM_CAMERA_ALTITUDE          = 2000 # [m] maximum altitude above the runway to get a reliable camera shot. If above this altitude, the runway element is not considered explored
             self.PROXIMITY_PENALTY_MAXIMUM        = 1 # how much to penalize closeness of the quadrotors to encourage them not to bunch up; penalty = -PROXIMITY_PENALTY_MAXIMUM*exp(-distance/PROXIMITY_PENALTY_FACTOR)
-            #self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
-            self.PROXIMITY_PENALTY_FACTOR         = 1.075 # how much the penalty decays with distance -> a penalty of 0.01 when they are 5 m apart. To change: = -distance/ln(desired_penalty)
+            self.PROXIMITY_PENALTY_FACTOR         = 4.3 # how much the penalty decays with distance -> a penalty of 0.01 when they are 20 m apart. To change: = -distance/ln(desired_penalty)
+            #self.PROXIMITY_PENALTY_FACTOR         = 1.075 # how much the penalty decays with distance -> a penalty of 0.01 when they are 5 m apart. To change: = -distance/ln(desired_penalty)
             self.LOWER_ACTION_BOUND               = np.array([-2.5, -2.5]) # [m/s^2, m/s^2, m/s^2]
             self.UPPER_ACTION_BOUND               = np.array([ 2.5,  2.5]) # [m/s^2, m/s^2, m/s^2]
             self.LOWER_STATE_BOUND_PER_QUAD       = np.array([ -10. - self.RUNWAY_LENGTH/2, -10. - self.RUNWAY_WIDTH/2,  0., -self.VELOCITY_LIMIT, -self.VELOCITY_LIMIT, -self.VELOCITY_LIMIT]) # [m, m, m, m/s, m/s, m/s]
@@ -287,7 +288,23 @@ class Environment:
         
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
-        self.previous_runway_value = 0
+        
+        # A list of all the tiles that rewards should not be returned for
+        if self.RUNWAY_SHAPE == 'R':
+            blank_tiles = []
+            
+        elif self.RUNWAY_SHAPE == 'L':
+            blank_tiles = list(([2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3]))
+            
+        elif self.RUNWAY_SHAPE == 'C':                
+            blank_tiles = list(([2,2],[3,2],[4,2],[5,2],[2,3],[3,3],[4,3],[5,3]))
+            
+        # Assign tiles we don't care about to 1 (meaning they won't give any reward)
+        for i in range(len(blank_tiles)):
+            self.runway_state[blank_tiles[i][0],blank_tiles[i][1]] = 1
+        
+        # Pre-loading the previous runway value with the initial value so rewards won't be received for the pseudo-already-explored tiles
+        self.previous_runway_value = len(blank_tiles)
         
         # Resetting the action delay queue        
         if self.DYNAMICS_DELAY > 0:
@@ -424,7 +441,8 @@ class Environment:
                     if self.runway_state[j,k] == 0 and quad_line.intersects(self.tile_polygons[j][k]):
                         self.runway_state[j,k] = 1
                         #print("Quad %i traced the line %s and explored runway element length = %i, width = %i with coordinates %s" %(i,list(quad_line.coords),j,k,self.tile_polygons[j][k].bounds))
-            
+        
+        
         # Storing current quad positions for the next timestep
         self.previous_quad_positions = self.quad_positions
        

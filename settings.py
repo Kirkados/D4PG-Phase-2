@@ -16,11 +16,11 @@ class Settings:
     ##### Run Settings #####
     ########################
 
-    RUN_NAME               = '2quad_outdoors_nofail' # use just the name. If trying to restore from file, use name along with timestamp
+    RUN_NAME               = 'reexplorePenalty0p5_outsideRunwayPenalty0_2quad_outdoors_nofail' # use just the name. If trying to restore from file, use name along with timestamp
     ENVIRONMENT            = 'quad1_runway' # 'quad1' for Task 1 velocity; 'quad1_accel' for Task 1 accel; 'quad1_runway' for Task 2 accel
     AGENT                  = '_runway' # '' for Task 1, '_runway' for runway experiment
     RECORD_VIDEO           = True
-    VIDEO_RECORD_FREQUENCY = 20 # 20 Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
+    VIDEO_RECORD_FREQUENCY = 20# 20 Multiples of "CHECK_GREEDY_PERFORMANCE_EVERY_NUM_EPISODES"
     NOISELESS_AT_TEST_TIME = True # Whether or not to test without action noise (Keep at True unless debugging)
     LEARN_FROM_PIXELS      = False # False = learn from state (fully observed); True = learn from pixels (partially observed)
     RESUME_TRAINING        = False # If True, be sure to set "RUN_NAME" to the previous run's filename

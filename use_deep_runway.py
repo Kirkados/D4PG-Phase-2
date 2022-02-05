@@ -176,7 +176,7 @@ def main():
             for i in range(len(blank_tiles)):
                 runway_state[blank_tiles[i][0],blank_tiles[i][1]] = 1
             
-            last_runway_state = runway_state           
+            last_runway_state = np.copy(runway_state)
             desired_altitudes = np.linspace(first_quad_altitude+Settings.NUMBER_OF_QUADS*2, first_quad_altitude, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
             while not_done:

@@ -59,7 +59,7 @@ import signal
 import multiprocessing
 import queue
 from scipy.integrate import odeint # Numerical integrator
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, Point
 
 import matplotlib
 matplotlib.use('Agg')
@@ -133,6 +133,8 @@ class Environment:
 
         # Additional properties
         self.ACCELERATION_PENALTY             = 0.0 # [factor] how much to penalize all acceleration commands
+        self.REEXPLORE_PENALTY                = 0.5 # [rewards/tile] how much to penalize re-exploring a tile          NOTE THIS IS APPLIED ONCE PER TILE
+        self.OUTSIDE_RUNWAY_PENALTY           = 0#0.05 # [rewards/timestep] how much to penalize for exiting the runway. NOTE THIS IS APPLIED AT EACH TIMESTEP
         if self.INDOORS:  
             self.VELOCITY_LIMIT                   = 4 # [m/s] maximum allowable velocity, a hard cap is enforced if this velocity is exceeded. Note: Paparazzi must also supply a hard velocity cap        
             self.MINIMUM_CAMERA_ALTITUDE          = 0 # [m] minimum altitude above the runway to get a reliable camera shot. If below this altitude, the runway element is not considered explored
@@ -172,8 +174,13 @@ class Environment:
                                          [each_runway_length_element*i     - self.RUNWAY_LENGTH/2, each_runway_width_element*(j+1) - self.RUNWAY_WIDTH/2]]))
                 
             self.tile_polygons.append(this_row)
-
-
+        
+        # Generate whole-runway Polygon
+        self.runway_polygon = Polygon([[-self.RUNWAY_LENGTH/2, -self.RUNWAY_WIDTH/2],
+                                       [-self.RUNWAY_LENGTH/2,  self.RUNWAY_WIDTH/2],
+                                       [self.RUNWAY_LENGTH/2,   self.RUNWAY_WIDTH/2],
+                                       [self.RUNWAY_LENGTH/2,  -self.RUNWAY_WIDTH/2]])
+        
         # Performing some calculations  
         self.RUNWAY_STATE_SIZE                = self.RUNWAY_WIDTH_ELEMENTS * self.RUNWAY_LENGTH_ELEMENTS # how big the runway "grid" is                                                   
         self.TOTAL_STATE_SIZE                 = self.BASE_STATE_SIZE + self.RUNWAY_STATE_SIZE
@@ -297,6 +304,10 @@ class Environment:
         
         # Resetting the runway state
         self.runway_state = np.zeros([self.RUNWAY_LENGTH_ELEMENTS, self.RUNWAY_WIDTH_ELEMENTS])
+        
+        # Resetting the current tile measurement
+        self.current_tile = np.zeros([self.NUMBER_OF_QUADS,2])
+        self.previous_tile = np.zeros([self.NUMBER_OF_QUADS,2])
                     
         # Assign tiles we don't care about to 1 (meaning they won't give any reward)
         for i in range(len(self.blank_tiles)):
@@ -363,17 +374,55 @@ class Environment:
         if self.NUMBER_OF_QUADS > 1:
             self.check_for_quad_failures()
                 
+        # Update the tile each quadrotor is currently over (used later in reward function)
+        reexplore_penalty = self.check_penalty_for_reexploring()
+        
         # Update the state of the runway
         self.check_runway()
 
         # Calculating the reward for this state-action pair
-        reward = self.reward_function(actions)
+        reward = self.reward_function(actions, reexplore_penalty)
 
         # Check if this episode is done
         done = self.is_done()
 
         # Return the (reward, done)
         return reward, done
+    
+    def check_penalty_for_reexploring(self):        
+        # This method checks for which tile each quadrotor is currently over.
+        # It is used to determine whether a quadrotor passed over a new tile and therefore
+        # should be (optionally) penalized
+        
+        reexplore_penalty = np.zeros(self.NUMBER_OF_QUADS)
+        
+        # Generate quadrotor Points
+        for i in range(self.NUMBER_OF_QUADS):
+            quad_point = Point(self.quad_positions[i,:-1]) # this quad's Point
+            
+            # For each element in the runway
+            for j in range(self.RUNWAY_LENGTH_ELEMENTS):
+                for k in range(self.RUNWAY_WIDTH_ELEMENTS):                    
+                    # If this element has already been explored, skip it
+                    if quad_point.within(self.tile_polygons[j][k]):
+                        self.current_tile[i,:] = np.array([j,k])
+                        
+                        if np.any(self.current_tile[i,:] != self.previous_tile[i,:]):
+                            # Quad i has moved to a new tile at this timestep
+                            
+                            # Setting the previous tile to this tile for this quad
+                            self.previous_tile[i,:] = np.array([j,k])
+                            
+                            if self.runway_state[j,k] == 1:
+                                # Quad i has moved to a previously-explored tile! Oh no! Potentially penalize this behaviour
+                                #print("Quad ", i, " has re-explored tile ", j, " ", k, " Oh no!")
+                                reexplore_penalty[i] = self.REEXPLORE_PENALTY
+        
+        # Return the violations for each quadrotor
+        return reexplore_penalty
+
+        
+        
     
     def check_for_quad_failures(self):
         # Checks and enforces a quad failure if it exists
@@ -469,12 +518,38 @@ class Environment:
                     minimum_distances[i] = this_distance
 
         return minimum_distances
+    
+    def check_if_outside_runway(self):
+        # Checks if any quads are outside the runway and penalizes them appropriately
+        # Note: This penalty is applied at each timestep
+        
+        outside_runway_penalty = np.zeros(self.NUMBER_OF_QUADS)
+        
+        # Generate quadrotor Points
+        for i in range(self.NUMBER_OF_QUADS):
+            quad_point = Point(self.quad_positions[i,:-1]) # this quad's Point
+                        
+            if not quad_point.within(self.runway_polygon):
+                # This quad is outside the runway! Penalize it!  
+                #print("Quad ", i, " IS OUTSIDE THE RUNWAY!")
+                outside_runway_penalty[i] = self.OUTSIDE_RUNWAY_PENALTY
+        
+        # Return the violations for each quadrotor
+        return outside_runway_penalty
 
-    def reward_function(self, action):
+    
+    
+    def reward_function(self, action, reexplore_penalty):
         # Returns the reward for this TIMESTEP as a function of the state and action
         
         # Initializing the rewards to zero for all quads
         rewards = np.zeros(self.NUMBER_OF_QUADS)
+        
+        # Give penalties for re-exploring tiles (calculated in check_penalty_for_reexploring)
+        rewards -= reexplore_penalty
+        
+        # Give penalties to exiting the runway
+        rewards -= self.check_if_outside_runway()
         
         # Give rewards according to the change in runway state. A newly explored tile will yield a reward of +1
         rewards += np.sum(self.runway_state) - self.previous_runway_value

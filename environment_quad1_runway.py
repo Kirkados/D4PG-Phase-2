@@ -82,7 +82,7 @@ class Environment:
         ##### Environment Properties #####
         ##################################
         self.NUMBER_OF_QUADS                  = 2 # Number of quadrotors working together to complete the task
-        self.RUNWAY_SHAPE                     = 'C' # 'C' = C-shape; 'L' = L-shape; 'R' = regular rectangle
+        self.RUNWAY_SHAPE                     = 'R' # 'C' = C-shape; 'L' = L-shape; 'R' = regular rectangle
         self.THREE_QUAD_GENERIC_MODEL         = False # whether to train a model that works on 3/2/1 quads equally well, while accounting for all failures
         self.BASE_STATE_SIZE                  = self.NUMBER_OF_QUADS * 6 # [my_x, my_y, my_z, my_Vx, my_Vy, my_Vz, other1_x, other1_y, other1_z, other1_Vx, other1_Vy, other1_Vz, other2_x, other2_y, other2_z, other2_Vx, other2_Vy, other2_Vz]  
         self.INDOORS                          = False # True = indoors; False = outdoors

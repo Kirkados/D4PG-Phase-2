@@ -94,7 +94,7 @@ class Environment:
         else:
             self.RUNWAY_WIDTH                     = 12.5 # [m] in Y (West)
             self.RUNWAY_LENGTH                    = 124 # [m] in X (North)  
-            self.MAX_NUMBER_OF_TIMESTEPS          = 500*3 # per episode
+            self.MAX_NUMBER_OF_TIMESTEPS          = 500*1 # per episode
         self.RUNWAY_WIDTH_ELEMENTS            = 4 # 4[elements]
         self.RUNWAY_LENGTH_ELEMENTS           = 8 # 8[elements]
         self.IRRELEVANT_STATES                = [2,5] # indices of states who are irrelevant to the policy network

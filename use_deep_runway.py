@@ -159,7 +159,24 @@ def main():
             
             # Initializing
             runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])
-            last_runway_state = np.zeros([Settings.RUNWAY_LENGTH_ELEMENTS, Settings.RUNWAY_WIDTH_ELEMENTS])            
+            # A list of all the tiles that rewards should not be returned for
+            if Settings.RUNWAY_SHAPE == 'R':
+                blank_tiles = []
+                print("Rectangular-shaped runway is used!")
+                
+            elif Settings.RUNWAY_SHAPE == 'L':
+                blank_tiles = list(([2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1]))
+                print("L-shaped runway is used!")
+                
+            elif Settings.RUNWAY_SHAPE == 'C':                
+                blank_tiles = list(([2,0],[3,0],[4,0],[5,0],[2,1],[3,1],[4,1],[5,1]))
+                print("C-shaped runway is used!")
+            
+            # Assign tiles we don't care about to 1 (meaning they won't give any reward)
+            for i in range(len(blank_tiles)):
+                runway_state[blank_tiles[i][0],blank_tiles[i][1]] = 1
+            
+            last_runway_state = runway_state           
             desired_altitudes = np.linspace(first_quad_altitude+Settings.NUMBER_OF_QUADS*2, first_quad_altitude, Settings.NUMBER_OF_QUADS, endpoint = False)
                 
             while not_done:

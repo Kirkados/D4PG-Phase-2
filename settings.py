@@ -144,6 +144,7 @@ class Settings:
     MINIMUM_CAMERA_ALTITUDE          = env.MINIMUM_CAMERA_ALTITUDE
     MAXIMUM_CAMERA_ALTITUDE          = env.MAXIMUM_CAMERA_ALTITUDE
     QUAD_FAILURE_PERCENTAGE          = env.QUAD_FAILURE_PERCENTAGE
+    RUNWAY_SHAPE                     = env.RUNWAY_SHAPE
             
     # Delete the test environment
     del env
